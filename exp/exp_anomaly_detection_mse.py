@@ -4,7 +4,7 @@ from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.tools import adjust_learning_rate, visual, visual_anomaly, adjustment
 from utils.tsne import visualization,visualization_PCA
-from utils.anomaly_detection_metrics import adjbestf1,f1_score
+from utils.anomaly_detection_metrics import adjbestf1
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score
 import collections
@@ -22,20 +22,15 @@ import numpy as np
 warnings.filterwarnings('ignore')
 
 
-class Exp_Anomaly_Detection(Exp_Basic):
+class Exp_Anomaly_Detection_Mse(Exp_Basic):
     def __init__(self, args):
-        super(Exp_Anomaly_Detection, self).__init__(args)
+        super(Exp_Anomaly_Detection_Mse, self).__init__(args)
 
     def _build_model(self):
         model = self.model_dict[self.args.model].Model(self.args).float()
 
         if self.args.use_multi_gpu and self.args.use_gpu:
             model = nn.DataParallel(model, device_ids=self.args.device_ids)
-        if self.args.freeze_decoder:
-            for name, param in model.decoder.named_parameters():
-                param.requires_grad = False
-            for name, param in model.backbone.decoder.named_parameters():
-                param.requires_grad = False
         return model
 
     def _get_data(self, flag):
@@ -219,7 +214,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 if self.args.use_ims:
                     outputs = self.model(batch_x[:, :-self.args.patch_len, :], None, None, None)
                     batch_x = batch_x[:, self.args.patch_len:-self.args.patch_len, :]
-                    batch_y = batch_y[:, self.args.patch_len:-self.args.patch_len]
                     outputs = outputs[:, :-self.args.patch_len, :]
                     embeds = self.model.getEmbedding(batch_x)
                     features = self.model.getFeature(batch_x)
@@ -252,7 +246,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
         input = np.concatenate(input_list, axis=0).reshape(-1)
         output = np.concatenate(output_list, axis=0).reshape(-1)
         score_list = np.concatenate(score_list, axis=0).reshape(-1)
-        
         # 输出adjustment best f1及best f1在最佳阈值下的原始结果
         best_pred_adj, best_pred = adjbestf1(test_labels, score_list, 100)
         # 计算没有adjustment的结果
@@ -320,6 +313,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
             file_path = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_testset.pdf'
         if not os.path.exists(data_path):
             os.makedirs(data_path)
+        # import pdb
+        # pdb.set_trace()
         visual_anomaly(input_border, output_border, self.args.patch_len*5, input_border.shape[0]-self.args.patch_len*5, file_path_border)
         visual_anomaly(input, output, border1-border_start, border2-border_start, file_path)
         

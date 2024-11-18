@@ -357,14 +357,24 @@ class Dataset_PEMS(Dataset):
 
 
 class UCRAnomalyloader(Dataset):
-    def __init__(self, root_path, data_path, seq_len, patch_len, flag="train"):
+    def __init__(self, args, root_path, data_path, seq_len, patch_len, flag="train"):
+        self.args = args
         self.root_path = root_path
         self.data_path = data_path
         self.seq_len = seq_len
         self.input_len = seq_len - patch_len
         self.patch_len = patch_len
         self.flag = flag
-        self.stride = 1 if self.flag == "train" else self.seq_len - 2 * self.patch_len
+        # self.stride = 1 if self.flag == "train" else self.seq_len - 2 * self.patch_len
+        # self.stride = 1 if self.flag == "train" else self.seq_len
+        if self.flag == "train":
+            self.stride = 1
+        else:
+            if self.args.use_ims:
+                self.stride = self.seq_len - 2 * self.patch_len
+            else:
+                self.stride = self.seq_len
+                
         self.dataset_file_path = os.path.join(self.root_path, self.data_path)
         data_list = []
         assert self.dataset_file_path.endswith('.txt')
@@ -392,6 +402,14 @@ class UCRAnomalyloader(Dataset):
         else:
             self.data = self.data[self.border - self.patch_len:]
 
+        border_start = self.find_border_number(self.data_path)
+        border1, border2 = self.find_border(self.data_path)
+        if self.flag == "test":
+            self.test_label = np.zeros(self.data.shape[0])
+            self.test_label[border1 - border_start:border2 - border_start] = 1
+        else:
+            self.test_label = np.zeros(self.data.shape[0])
+
     def find_border_number(self, input_string):
         parts = input_string.split('_')
 
@@ -405,10 +423,34 @@ class UCRAnomalyloader(Dataset):
             return border
         except ValueError:
             return None
+        
+    def find_border(self, input_string):
+        parts = input_string.split('_')
+
+        if len(parts) < 3:
+            return None
+
+        border1_str = parts[-2]
+        border2_str = parts[-1]
+        if '.' in border2_str:
+            border2_str = border2_str[:border2_str.find('.')]
+
+        try:
+            border1 = int(border1_str)
+            border2 = int(border2_str)
+            return border1, border2
+        except ValueError:
+            return None
+        
+    def getData(self):
+        return self.data
 
     def __len__(self):
         return (self.data.shape[0] - self.seq_len) // self.stride + 1
 
     def __getitem__(self, index):
         index = index * self.stride
-        return self.data[index:index + self.seq_len, :]
+        if self.flag == "test":
+            return self.data[index:index + self.seq_len, :], self.test_label[index:index + self.seq_len]
+        else:
+            return self.data[index:index + self.seq_len, :]

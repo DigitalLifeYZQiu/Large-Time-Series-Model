@@ -10,6 +10,7 @@ import torch.distributed as dist
 from exp.exp_forecast import Exp_Forecast
 from exp.exp_anomaly_detection import Exp_Anomaly_Detection
 from exp.exp_imputation import Exp_Imputation
+from exp.exp_visualize import Exp_Visualize
 from utils.tools import HiddenPrints
 
 if __name__ == '__main__':
@@ -85,6 +86,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--decay_fac', type=float, default=0.75)
 
+    # parameter freeze
+    parser.add_argument('--freeze_decoder', action='store_true', help='freeze the decoder layer in fintuning', default=False)
+
     # cosin decay
     parser.add_argument('--cos_warm_up_steps', type=int, default=100)
     parser.add_argument('--cos_max_decay_steps', type=int, default=60000)
@@ -113,6 +117,16 @@ if __name__ == '__main__':
     # imputation task
     parser.add_argument('--mask_rate', type=float, default=0.25, help='mask ratio')
 
+    # visualization
+    parser.add_argument('--show_embedding', action='store_true', help='plot embedding tsne result', default=False)
+    parser.add_argument('--show_feature', action='store_true', help='plot feature tsne result', default=False)
+    parser.add_argument('--date_record', action='store_true', help='record date in visualization', default=False)
+
+    # tsne setting
+    parser.add_argument('--tsne_perplexity', type=int, default=10, help='The number of neighbor points considered in TSNE algorithm, normally 5 - 50. \
+                        Bigger perplexity leads to less detailed characteristics and smaller perplexity leads to overfit.')
+    parser.add_argument('--use_PCA', action='store_true', help='using PCA can reduce overall dimensionality and reduce computation resource assumption', default=False)
+
     args = parser.parse_args()
     fix_seed = args.seed
     random.seed(fix_seed)
@@ -140,6 +154,8 @@ if __name__ == '__main__':
         Exp = Exp_Anomaly_Detection
     elif args.task_name == 'forecast':
         Exp = Exp_Forecast
+    elif 'visualize' in args.task_name:
+        Exp = Exp_Visualize
     else:
         raise ValueError('task name not found')
 
@@ -169,7 +185,8 @@ if __name__ == '__main__':
                     args.distil,
                     args.des,
                     ii)
-                setting += datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+                if args.date_record:
+                    setting += datetime.now().strftime("%y-%m-%d_%H-%M-%S")
 
                 exp = Exp(args)  # set experiments
                 print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
@@ -199,8 +216,8 @@ if __name__ == '__main__':
                 args.distil,
                 args.des,
                 ii)
-
-            setting += datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+            if args.date_record:
+                setting += datetime.now().strftime("%y-%m-%d_%H-%M-%S")
             exp = Exp(args)  # set experiments
             print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
             exp.test(setting, test=1)

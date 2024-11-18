@@ -40,9 +40,10 @@ python -u run.py \
   --subset_rand_ratio $subset_rand_ratio \
   --train_epochs 10 \
   --date_record \
-  --use_ims
+  --use_ims \
+  --freeze_decoder
 
-  if ((counter>4)); then
+  if ((counter>3)); then
     break
   fi
 done

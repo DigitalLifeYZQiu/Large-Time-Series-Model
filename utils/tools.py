@@ -197,6 +197,19 @@ def visual(true, preds=None, name='./pic/test.pdf'):
     plt.legend(loc='upper left')
     plt.savefig(name, bbox_inches='tight')
 
+def visual_anomaly(true, preds=None, border1=None, border2=None, name='./pic/test.pdf'):
+    """
+    Results visualization
+    """
+    plt.figure()
+    if preds is not None:
+        plt.plot(preds, label='Prediction', c='dodgerblue', linewidth=0.5)
+    if border1 is not None and border2 is not None:
+        plt.axvspan(border1, border2, alpha=0.25, color='red')
+    plt.plot(true, label='GroundTruth', c='tomato', linewidth=0.5)
+    plt.legend(loc='upper left')
+    plt.savefig(name, bbox_inches='tight')
+
 
 def attn_map(attn, path='./pic/attn_map.pdf'):
     """

@@ -41,6 +41,39 @@ class Model(nn.Module):
                 else:
                     raise NotImplementedError
 
+    def getEmbedding(self, x_enc):
+        B, L, M = x_enc.shape
+
+        # Normalization from Non-stationary Transformer
+        means = x_enc.mean(1, keepdim=True).detach()
+        x_enc = x_enc - means
+        stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5).detach()
+        x_enc /= stdev
+
+        # do patching and embedding
+        x_enc = x_enc.permute(0, 2, 1)  # [B, M, L]
+        dec_in, n_vars = self.enc_embedding(x_enc)  # [B * M, N, D]
+        embedding = dec_in.reshape(B,-1)# Use this for batch level embedding
+        return dec_in
+    
+    def getFeature(self, x_enc):
+        B, L, M = x_enc.shape
+
+        # Normalization from Non-stationary Transformer
+        means = x_enc.mean(1, keepdim=True).detach()
+        x_enc = x_enc - means
+        stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5).detach()
+        x_enc /= stdev
+
+        # do patching and embedding
+        x_enc = x_enc.permute(0, 2, 1)  # [B, M, L]
+        dec_in, n_vars = self.enc_embedding(x_enc)  # [B * M, N, D]
+    
+        # Transformer Blocks
+        dec_out, attns = self.decoder(dec_in) # [B * M, N, D]
+        feature = dec_out.reshape(B,-1)# Use this for batch level feature
+        return dec_out
+
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         B, L, M = x_enc.shape
 
@@ -114,7 +147,8 @@ class Model(nn.Module):
 
 
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
-        if self.task_name == 'forecast':
+        # if self.task_name == 'forecast':
+        if 'forecast' in self.task_name:
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out  # [B, T, D]
         if self.task_name == 'imputation':

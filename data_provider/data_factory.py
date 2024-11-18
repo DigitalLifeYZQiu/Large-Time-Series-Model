@@ -33,7 +33,8 @@ def data_provider(args, flag):
         batch_size = args.batch_size  # bsz for train and valid
         freq = args.freq
 
-    if args.task_name == 'forecast':
+    # if args.task_name == 'forecast':
+    if 'forecast' in args.task_name:
         if args.use_ims:
             data_set = CIAutoRegressionDatasetBenchmark(
                 root_path=os.path.join(args.root_path, args.data_path),
@@ -84,6 +85,7 @@ def data_provider(args, flag):
     elif args.task_name == 'anomaly_detection':
         drop_last = False
         data_set = UCRAnomalyloader(
+            args=args,
             root_path=args.root_path,
             data_path=args.data_path,
             seq_len=args.seq_len,

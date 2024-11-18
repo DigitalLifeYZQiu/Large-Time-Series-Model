@@ -14,8 +14,7 @@ counter=0
 # ergodic datasets
 for file_path in "$dataset_dir"/*
 do
-data=$(basename "$file_path")
-# data="004_UCR_Anomaly_DISTORTEDBIDMC1_2500_5400_5600.txt"
+data_file=$(basename "$file_path")
 ((counter++))
 echo $counter
 python -u run.py \
@@ -23,8 +22,8 @@ python -u run.py \
   --is_training 1 \
   --is_finetuning 1 \
   --root_path ./dataset/UCR_Anomaly_FullData \
-  --data_path $data \
-  --model_id UCRA_$data \
+  --data_path $data_file \
+  --model_id UCRA_$data_file \
   --ckpt_path $ckpt_path \
   --model $model_name \
   --data UCRA \
@@ -37,12 +36,16 @@ python -u run.py \
   --e_layers $e_layers \
   --train_test 0 \
   --batch_size 128 \
+  --use_ims \
   --subset_rand_ratio $subset_rand_ratio \
   --train_epochs 10 \
-  --date_record \
-  --use_ims
+  --show_embedding \
+  --show_feature \
+  --tsne_perplexity 25
 
-  if ((counter>4)); then
-    break
-  fi
+
+if ((counter>3)); then
+  break
+fi
+
 done

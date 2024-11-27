@@ -41,6 +41,7 @@ python -u run.py \
   --train_epochs 10 \
   --show_embedding \
   --show_feature \
+  --show_score \
   --tsne_perplexity 25
 
 if ((counter>3)); then

@@ -1,8 +1,20 @@
 import os
 
 import torch
-
 from models import TrmEncoder, Timer
+
+def __init__(self, args):
+        self.args = args
+        self.model_dict = {
+            'TrmEncoder': TrmEncoder,
+            'Timer': Timer,
+        }
+        if self.args.use_multi_gpu:
+            self.model = self._build_model()
+            self.device = torch.device('cuda:{}'.format(self.args.local_rank))
+        else:
+            self.device = self._acquire_device()
+            self.model = self._build_model().to(self.device)
 
 
 class Exp_Basic(object):

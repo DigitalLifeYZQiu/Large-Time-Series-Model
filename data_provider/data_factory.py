@@ -55,6 +55,7 @@ def data_provider(args, flag):
                 flag=flag,
                 input_len=args.seq_len,
                 pred_len=args.pred_len,
+                # pred_len=args.output_len if flag == 'test' else args.pred_len,
                 data_type=args.data,
                 scale=True,
                 timeenc=timeenc,
@@ -82,7 +83,7 @@ def data_provider(args, flag):
                 drop_last=False)
         return data_set, data_loader
 
-    elif args.task_name == 'anomaly_detection':
+    elif args.task_name == 'anomaly_detection' or args.task_name == 'anomaly_detection_AEAR':
         drop_last = False
         data_set = UCRAnomalyloader(
             args=args,

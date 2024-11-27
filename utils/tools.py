@@ -197,18 +197,23 @@ def visual(true, preds=None, name='./pic/test.pdf'):
     plt.legend(loc='upper left')
     plt.savefig(name, bbox_inches='tight')
 
-def visual_anomaly(true, preds=None, border1=None, border2=None, name='./pic/test.pdf'):
+def visual_anomaly(true, preds=None, best_pred=None, border1=None, border2=None, name='./pic/test.pdf'):
     """
     Results visualization
     """
     plt.figure()
     if preds is not None:
         plt.plot(preds, label='Prediction', c='dodgerblue', linewidth=0.5)
+    if best_pred is not None:
+        selected = np.where(best_pred)[0]
+        for i in selected:
+            plt.axvline(x=i, color='#FF00EE', alpha=0.5, linewidth=0.1)
     if border1 is not None and border2 is not None:
         plt.axvspan(border1, border2, alpha=0.25, color='red')
     plt.plot(true, label='GroundTruth', c='tomato', linewidth=0.5)
     plt.legend(loc='upper left')
     plt.savefig(name, bbox_inches='tight')
+    print(f'Plot saved to {name}')
 
 
 def attn_map(attn, path='./pic/attn_map.pdf'):

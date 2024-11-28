@@ -83,7 +83,8 @@ def data_provider(args, flag):
                 drop_last=False)
         return data_set, data_loader
 
-    elif args.task_name == 'anomaly_detection' or args.task_name == 'anomaly_detection_AEAR':
+    # elif args.task_name == 'anomaly_detection' or args.task_name == 'anomaly_detection_AEAR':
+    elif 'anomaly_detection' in args.task_name:
         drop_last = False
         data_set = UCRAnomalyloader(
             args=args,

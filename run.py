@@ -9,7 +9,9 @@ import torch.distributed as dist
 
 from exp.exp_forecast import Exp_Forecast
 from exp.exp_anomaly_detection import Exp_Anomaly_Detection
-from exp.exp_anomaly_detection_AEAR import Exp_Anomaly_Detection_AEAR
+from exp.exp_anomaly_detection_AEAR import Exp_Anomaly_Detection_AEAR # deprecated
+from exp.exp_anomaly_detection_AE import Exp_Anomaly_Detection_AE
+from exp.exp_anomaly_detection_AR import Exp_Anomaly_Detection_AR
 from exp.exp_imputation import Exp_Imputation
 from exp.exp_visualize import Exp_Visualize
 from utils.tools import HiddenPrints
@@ -156,8 +158,12 @@ if __name__ == '__main__':
         Exp = Exp_Imputation
     elif args.task_name == 'anomaly_detection':
         Exp = Exp_Anomaly_Detection
-    elif args.task_name == 'anomaly_detection_AEAR':
+    elif args.task_name == 'anomaly_detection_AEAR':# deprecated
         Exp = Exp_Anomaly_Detection_AEAR
+    elif args.task_name == 'anomaly_detection_AE':
+        Exp = Exp_Anomaly_Detection_AE
+    elif args.task_name == 'anomaly_detection_AR':
+        Exp = Exp_Anomaly_Detection_AR
     elif args.task_name == 'forecast':
         Exp = Exp_Forecast
     elif 'visualize' in args.task_name:

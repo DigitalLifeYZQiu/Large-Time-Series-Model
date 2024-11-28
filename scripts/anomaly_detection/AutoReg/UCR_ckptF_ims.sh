@@ -18,7 +18,7 @@ data_file=$(basename "$file_path")
 ((counter++))
 echo $counter
 python -u run.py \
-  --task_name anomaly_detection \
+  --task_name anomaly_detection_AR \
   --is_training 1 \
   --is_finetuning 1 \
   --root_path ./dataset/UCR_Anomaly_FullData \
@@ -36,13 +36,12 @@ python -u run.py \
   --e_layers $e_layers \
   --train_test 0 \
   --batch_size 128 \
-  --use_ims \
   --subset_rand_ratio $subset_rand_ratio \
   --train_epochs 10 \
-  --freeze_decoder \
+  --use_ims \
   --date_record
 
-if ((counter>3)); then
+if ((counter>4)); then
   break
 fi
 

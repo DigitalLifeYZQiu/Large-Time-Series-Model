@@ -23,9 +23,9 @@ import numpy as np
 warnings.filterwarnings('ignore')
 
 
-class Exp_Anomaly_Detection(Exp_Basic):
+class Exp_Anomaly_Detection_AE(Exp_Basic):
     def __init__(self, args):
-        super(Exp_Anomaly_Detection, self).__init__(args)
+        super(Exp_Anomaly_Detection_AE, self).__init__(args)
 
     def _build_model(self):
         model = self.model_dict[self.args.model].Model(self.args).float()
@@ -167,7 +167,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             else:
                 print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f}".format(
                     epoch + 1, train_steps, train_loss))
-                
+
             adjust_learning_rate(model_optim, epoch + 1, self.args)
 
         return self.model

@@ -370,14 +370,12 @@ class UCRAnomalyloader(Dataset):
         if self.flag == "train":
             self.stride = 1
         else:
-            if self.args.task_name == 'anomaly_detection_AEAR':
-                self.stride = self.seq_len - 2 * self.patch_len
-            else:
-                if self.args.use_ims:
-                    self.stride = self.seq_len - 2 * self.patch_len
-                else:
-                    # self.stride = self.seq_len
-                    self.stride = self.seq_len - 2 * self.patch_len
+            self.stride = self.seq_len - 2 * self.patch_len
+            # if self.args.use_ims:
+            #     self.stride = self.seq_len - 2 * self.patch_len
+            # else:
+            #     self.stride = self.seq_len
+                
             
                 
         self.dataset_file_path = os.path.join(self.root_path, self.data_path)

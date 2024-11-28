@@ -19,6 +19,7 @@ import os
 import time
 import warnings
 import numpy as np
+import copy
 
 warnings.filterwarnings('ignore')
 
@@ -41,8 +42,8 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
             self.model_AR.to(self.device)
 
     def _build_model(self):
-        model_AE = self.model_dict[self.args.model].Model(self.args).float()
-        model_AR = self.model_dict[self.args.model].Model(self.args).float()
+        model_AE = self.model_dict[self.args.model].Model_AE(self.args).float()
+        model_AR = self.model_dict[self.args.model].Model_AR(self.args).float()
 
         if self.args.use_multi_gpu and self.args.use_gpu:
             model_AE = nn.DataParallel(model_AE, device_ids=self.args.device_ids)
@@ -55,8 +56,10 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
         return (model_AE, model_AR)
 
     def _get_data(self, flag):
-        data_set, data_loader = data_provider(self.args, flag)
-        return data_set, data_loader
+        data_set_AE, data_loader_AE = data_provider(self.args, flag)
+        data_set_AR = copy.deepcopy(data_set_AE)
+        data_loader_AR = copy.deepcopy(data_loader_AE)
+        return data_set_AE, data_loader_AE, data_set_AR, data_loader_AR
 
     def _select_optimizer(self):
         model_optim_AE = optim.Adam(self.model_AE.parameters(), lr=self.args.learning_rate)
@@ -75,22 +78,7 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, _) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
-                if self.args.use_mask:
-                    # masked reconstruction task
-                    # random mask
-                    B, T, N = batch_x.shape
-                    assert T % self.args.patch_len == 0
-                    mask = torch.rand((B, T // self.args.patch_len, N)).to(self.device)
-                    mask = mask.unsqueeze(2).repeat(1, 1, self.args.patch_len, 1)
-                    mask[mask <= self.args.mask_rate] = 0  # masked
-                    mask[mask > self.args.mask_rate] = 1  # remained
-                    mask = mask.view(mask.size(0), -1, mask.size(-1))
-                    mask[:, :self.args.patch_len, :] = 1  # first patch is always observed
-                    inp = batch_x.masked_fill(mask == 0, 0)
-
-                    outputs_AE = self.model_AE(inp[:, self.args.patch_len:, :], None, None, None, mask)
-                else:
-                    outputs_AE = self.model_AE(batch_x[:, self.args.patch_len:, :], None, None, None)
+                outputs_AE = self.model_AE(batch_x[:, self.args.patch_len:, :], None, None, None)
                 batch_x_AE = batch_x[:, self.args.patch_len:, :]
                 outputs_AR = self.model_AR(batch_x[:, :-self.args.patch_len, :], None, None, None)
                 batch_x_AR = batch_x[:, self.args.patch_len:, :]
@@ -113,9 +101,9 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
 
     def finetune(self, setting):
 
-        train_data, train_loader = self._get_data(flag='train')
+        train_data_AE, train_loader_AE, train_data_AR, train_loader_AR = self._get_data(flag='train')
         # vali_data, vali_loader = self._get_data(flag='val')
-        test_data, test_loader = self._get_data(flag='test')
+        test_data_AE, test_loader_AE, test_data_AR, test_loader_AR = self._get_data(flag='test')
 
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
@@ -123,10 +111,11 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
 
         time_now = time.time()
 
-        train_steps = len(train_loader)
+        train_steps = len(train_loader_AE)
 
         (model_optim_AE, model_optim_AR) = self._select_optimizer()
         criterion = self._select_criterion()
+        
 
         for epoch in range(self.args.train_epochs):
             iter_count = 0
@@ -136,69 +125,12 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
             self.model_AE.train()
             self.model_AR.train()
             epoch_time = time.time()
-            # for i, batch_x in enumerate(train_loader):
-            #     iter_count += 1
-            #     model_optim_AE.zero_grad()
-            #     model_optim_AR.zero_grad()
-            #     batch_x = batch_x.float().to(self.device)
-            #     batch_x_AE = batch_x.float().to(self.device)
-            #     batch_x_AR = batch_x.float().to(self.device)
-                
-            #     # input and output are completely aligned
-            #     if self.args.use_mask:
-            #         # masked reconstruction task
-            #         # random mask
-            #         B, T, N = batch_x_AE.shape
-            #         assert T % self.args.patch_len == 0
-            #         mask = torch.rand((B, T // self.args.patch_len, N)).to(self.device)
-            #         mask = mask.unsqueeze(2).repeat(1, 1, self.args.patch_len, 1)
-            #         mask[mask <= self.args.mask_rate] = 0  # masked
-            #         mask[mask > self.args.mask_rate] = 1  # remained
-            #         mask = mask.view(mask.size(0), -1, mask.size(-1))
-            #         mask[:, :self.args.patch_len, :] = 1  # first patch is always observed
-            #         inp = batch_x_AE.masked_fill(mask == 0, 0)
 
-            #         outputs_AE = self.model_AE(inp[:, self.args.patch_len:, :], None, None, None, mask)
-            #     else:
-            #         outputs_AE = self.model_AE(batch_x_AE[:, self.args.patch_len:, :], None, None, None)
-
-            #     batch_x_AE = batch_x_AE[:, self.args.patch_len:, :]
-            #     outputs_AR = self.model_AR(batch_x_AR[:, :-self.args.patch_len, :], None, None, None)
-            #     batch_x_AR = batch_x_AR[:, self.args.patch_len:, :]
-
-            #     loss_AE = criterion(outputs_AE, batch_x_AE)
-            #     loss_AR = criterion(outputs_AR, batch_x_AR)
-
-            #     train_loss_AE.append(loss_AE.item())
-            #     train_loss_AR.append(loss_AR.item())
-
-
-            #     if i % 50 == 0:
-            #         cost_time = time.time() - time_now
-            #         print(
-            #             "Auto-Encoding \t\titers: {0}, epoch: {1} | loss: {2:.7f} | cost_time: {3:.0f} | memory: allocated {4:.0f}MB, reserved {5:.0f}MB, cached {6:.0f}MB "
-            #             .format(i, epoch + 1, loss_AE.item(), cost_time,
-            #                     torch.cuda.memory_allocated() / 1024 / 1024,
-            #                     torch.cuda.memory_reserved() / 1024 / 1024,
-            #                     torch.cuda.memory_cached() / 1024 / 1024))
-            #         print(
-            #             "Auto-Regression \titers: {0}, epoch: {1} | loss: {2:.7f} | cost_time: {3:.0f} | memory: allocated {4:.0f}MB, reserved {5:.0f}MB, cached {6:.0f}MB "
-            #             .format(i, epoch + 1, loss_AR.item(), cost_time,
-            #                     torch.cuda.memory_allocated() / 1024 / 1024,
-            #                     torch.cuda.memory_reserved() / 1024 / 1024,
-            #                     torch.cuda.memory_cached() / 1024 / 1024))
-            #         time_now = time.time()
-
-            #     loss_AE.backward()
-            #     loss_AR.backward()
-            #     model_optim_AE.step()
-            #     model_optim_AR.step()
-            #     torch.cuda.empty_cache()
-            for i, batch_x in enumerate(train_loader):
+            for i, batch_x in enumerate(train_loader_AE):
                 iter_count += 1
                 model_optim_AE.zero_grad()
                 batch_x = batch_x.float().to(self.device)
-                batch_x_AE = batch_x.float().to(self.device)
+                batch_x_AE = batch_x                
                 
                 # input and output are completely aligned
                 if self.args.use_mask:
@@ -206,22 +138,29 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
                     # random mask
                     B, T, N = batch_x_AE.shape
                     assert T % self.args.patch_len == 0
-                    mask = torch.rand((B, T // self.args.patch_len, N)).to(self.device)
-                    mask = mask.unsqueeze(2).repeat(1, 1, self.args.patch_len, 1)
-                    mask[mask <= self.args.mask_rate] = 0  # masked
-                    mask[mask > self.args.mask_rate] = 1  # remained
-                    mask = mask.view(mask.size(0), -1, mask.size(-1))
-                    mask[:, :self.args.patch_len, :] = 1  # first patch is always observed
-                    inp = batch_x_AE.masked_fill(mask == 0, 0)
 
-                    outputs_AE = self.model_AE(inp[:, self.args.patch_len:, :], None, None, None, mask)
+                    # #! The Bug is here
+                    # #? Bug description: the initialize of `mask` here slightly changes the batch_x in every epoch
+                    # #? DataLoader Relevant Issue!
+                    # mask = torch.rand((B, T // self.args.patch_len, N)).to(self.device)
+                    # #! The Bug is here
+                    # mask = mask.unsqueeze(2).repeat(1, 1, self.args.patch_len, 1)
+
+                    # mask[mask <= self.args.mask_rate] = 0  # masked
+                    # mask[mask > self.args.mask_rate] = 1  # remained
+                    # mask = mask.view(mask.size(0), -1, mask.size(-1))
+                    # mask[:, :self.args.patch_len, :] = 1  # first patch is always observed
+                    # batch_x_AE = batch_x_AE.masked_fill(mask == 0, 0)
+
+                    # outputs_AE = self.model_AE(batch_x_AE[:, self.args.patch_len:, :], None, None, None, mask)
+                    outputs_AE = self.model_AE(batch_x_AE[:, self.args.patch_len:, :], None, None, None)
                 else:
                     outputs_AE = self.model_AE(batch_x_AE[:, self.args.patch_len:, :], None, None, None)
-
+                # outputs_AE = self.model_AE(batch_x_AE[:, self.args.patch_len:, :], None, None, None)
                 batch_x_AE = batch_x_AE[:, self.args.patch_len:, :]
+                
 
                 loss_AE = criterion(outputs_AE, batch_x_AE)
-
                 train_loss_AE.append(loss_AE.item())
 
 
@@ -233,23 +172,25 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
                                 torch.cuda.memory_allocated() / 1024 / 1024,
                                 torch.cuda.memory_reserved() / 1024 / 1024,
                                 torch.cuda.memory_cached() / 1024 / 1024))
+                    
                     time_now = time.time()
 
                 loss_AE.backward()
                 model_optim_AE.step()
                 torch.cuda.empty_cache()
-
-            for i, batch_x in enumerate(train_loader):
+            
+            for i, batch_x in enumerate(train_loader_AR):
                 iter_count += 1
                 model_optim_AR.zero_grad()
                 batch_x = batch_x.float().to(self.device)
-                batch_x_AR = batch_x.float().to(self.device)
+                batch_x_AR = batch_x
                 
+                
+                # input and output are completely aligned
                 outputs_AR = self.model_AR(batch_x_AR[:, :-self.args.patch_len, :], None, None, None)
                 batch_x_AR = batch_x_AR[:, self.args.patch_len:, :]
                 loss_AR = criterion(outputs_AR, batch_x_AR)
                 train_loss_AR.append(loss_AR.item())
-
 
                 if i % 50 == 0:
                     cost_time = time.time() - time_now
@@ -260,9 +201,11 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
                                 torch.cuda.memory_reserved() / 1024 / 1024,
                                 torch.cuda.memory_cached() / 1024 / 1024))
                     time_now = time.time()
+
                 loss_AR.backward()
                 model_optim_AR.step()
                 torch.cuda.empty_cache()
+            
 
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss_AE = np.average(train_loss_AE)
@@ -279,11 +222,14 @@ class Exp_Anomaly_Detection_AEAR(Exp_Basic):
                     epoch + 1, train_steps, train_loss_AE))
                 print("Auto-Regression Epoch: {0}, Steps: {1} | Train Loss: {2:.7f}".format(
                     epoch + 1, train_steps, train_loss_AR))
-
-            adjust_learning_rate(model_optim_AE, epoch + 1, self.args)
+            import pdb
+            pdb.set_trace()
+            # adjust_learning_rate(model_optim_AE, epoch + 1, self.args)
             adjust_learning_rate(model_optim_AR, epoch + 1, self.args)
 
         return (self.model_AE, self.model_AR)
+    
+    
 
     def find_border(self, input_string):
         parts = input_string.split('_')

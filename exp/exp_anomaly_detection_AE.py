@@ -19,6 +19,7 @@ import os
 import time
 import warnings
 import numpy as np
+from utils.masking import patch_mask, expand_tensor
 
 warnings.filterwarnings('ignore')
 
@@ -125,15 +126,16 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
                     if self.args.use_mask:
                         # masked reconstruction task
                         # random mask
-                        B, T, N = batch_x.shape
+                        B, T, N = batch_x.shape # (B,S,C)
                         assert T % self.args.patch_len == 0
-                        mask = torch.rand((B, T // self.args.patch_len, N)).to(self.device)
-                        mask = mask.unsqueeze(2).repeat(1, 1, self.args.patch_len, 1)
-                        mask[mask <= self.args.mask_rate] = 0  # masked
-                        mask[mask > self.args.mask_rate] = 1  # remained
-                        mask = mask.view(mask.size(0), -1, mask.size(-1))
-                        mask[:, :self.args.patch_len, :] = 1  # first patch is always observed
-                        inp = batch_x.masked_fill(mask == 0, 0)
+
+                        mask_rate = self.args.mask_rate
+                        mask_patch_len = 4
+                        mask_stride = 4
+                        mask = patch_mask(batch_x, mask_rate, mask_patch_len, mask_stride)
+                        mask = expand_tensor(mask, mask_patch_len)
+                        mask = mask.reshape(B, N, -1)[:, :, :T].permute(0, 2, 1)
+                        inp = batch_x * mask.int()
 
                         outputs = self.model(inp[:, self.args.patch_len:, :], None, None, None, mask)
                         batch_x = batch_x[:, self.args.patch_len:, :]

@@ -116,30 +116,9 @@ class Exp_Anomaly_Detection_AR(Exp_Basic):
                 iter_count += 1
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
-                if self.args.use_ims:
-                    # backward overlapping parts between outputs and inputs
-                    outputs = self.model(batch_x[:, :-self.args.patch_len, :], None, None, None)
-                    batch_x = batch_x[:, self.args.patch_len:, :]
-                else:
-                    # input and output are completely aligned
-                    if self.args.use_mask:
-                        # masked reconstruction task
-                        # random mask
-                        B, T, N = batch_x.shape
-                        assert T % self.args.patch_len == 0
-                        mask = torch.rand((B, T // self.args.patch_len, N)).to(self.device)
-                        mask = mask.unsqueeze(2).repeat(1, 1, self.args.patch_len, 1)
-                        mask[mask <= self.args.mask_rate] = 0  # masked
-                        mask[mask > self.args.mask_rate] = 1  # remained
-                        mask = mask.view(mask.size(0), -1, mask.size(-1))
-                        mask[:, :self.args.patch_len, :] = 1  # first patch is always observed
-                        inp = batch_x.masked_fill(mask == 0, 0)
-
-                        outputs = self.model(inp[:, self.args.patch_len:, :], None, None, None, mask)
-                        batch_x = batch_x[:, self.args.patch_len:, :]
-                    else:
-                        outputs = self.model(batch_x[:, self.args.patch_len:, :], None, None, None)
-                        batch_x = batch_x[:, self.args.patch_len:, :]
+                # backward overlapping parts between outputs and inputs
+                outputs = self.model(batch_x[:, :-self.args.patch_len, :], None, None, None)
+                batch_x = batch_x[:, self.args.patch_len:, :]
                 loss = criterion(outputs, batch_x)
                 train_loss.append(loss.item())
 
@@ -211,11 +190,12 @@ class Exp_Anomaly_Detection_AR(Exp_Basic):
             status='_adaption'
         else:
             status='_zero-shot'
-        if self.args.use_ims:
-            status += '_ims'
+        status += '_AR'
         folder_path = './test_results/' + self.args.data + status +'/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
+
+        time_now = time.time()
 
         self.model.eval()
         self.anomaly_criterion = nn.MSELoss(reduce=False)
@@ -224,11 +204,7 @@ class Exp_Anomaly_Detection_AR(Exp_Basic):
         border1, border2 = self.find_border(self.args.data_path)
 
         token_count = 0
-        if self.args.use_ims:
-            rec_token_count = (self.args.seq_len - 2 * self.args.patch_len) // self.args.patch_len
-        else:
-            # rec_token_count = self.args.seq_len // self.args.patch_len
-            rec_token_count = (self.args.seq_len - 2 * self.args.patch_len) // self.args.patch_len
+        rec_token_count = (self.args.seq_len - 2 * self.args.patch_len) // self.args.patch_len
 
         input_list = []
         output_list = []
@@ -238,39 +214,53 @@ class Exp_Anomaly_Detection_AR(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, batch_y) in enumerate(test_loader):
                 batch_x = batch_x.float().to(self.device)
-                # reconstruct the input sequence and record the loss as a sorted list
-                if self.args.use_ims:
-                    outputs = self.model(batch_x[:, :-self.args.patch_len, :], None, None, None)[:, :-self.args.patch_len, :]
-                    batch_x = batch_x[:, self.args.patch_len:-self.args.patch_len, :]
-                    batch_y = batch_y[:, self.args.patch_len:-self.args.patch_len]
-                    # outputs = outputs[:, :-self.args.patch_len, :]
-                    embeds = self.model.getEmbedding(batch_x)
-                    features = self.model.getFeature(batch_x)
-                else:
-                    outputs = self.model(batch_x[:, self.args.patch_len:-self.args.patch_len, :], None, None, None)
-                    batch_x = batch_x[:, self.args.patch_len:-self.args.patch_len, :]
-                    batch_y = batch_y[:, self.args.patch_len:-self.args.patch_len]
-                    embeds = self.model.getEmbedding(batch_x)
-                    features = self.model.getFeature(batch_x)
-                input_list.append(batch_x[0, :, -1].detach().cpu().numpy())
-                output_list.append(outputs[0, :, -1].detach().cpu().numpy())
-                test_labels.append(batch_y.reshape(-1).detach().cpu().numpy())
-                embedding_list.append(embeds.detach().cpu().numpy())
-                feature_list.append(features.detach().cpu().numpy())
+                if self.args.use_ensemble_forecast:
+                    output_ensemble_list = []
+                    for token_idx in range(rec_token_count):
+                        outputs_ensemble = self.model(batch_x[:, token_idx*self.args.patch_len:-self.args.patch_len, :], None, None, None)[:,-self.args.patch_len:, :]
+                        output_ensemble_list.append(outputs_ensemble)
+                    outputs = torch.cat(output_ensemble_list, dim=2)
 
-                score = self.anomaly_criterion(outputs, batch_x)
-                score_list.append(score.detach().cpu().numpy()) 
-                # for j in range(rec_token_count):
-                #     # criterion
-                #     token_start = j * self.args.patch_len
-                #     token_end = token_start + self.args.patch_len
-                #     score = torch.mean(self.anomaly_criterion(batch_x[:, token_start:token_end, :],
-                #                                               outputs[:, token_start:token_end, :]), dim=-1)
-                #     score = score.detach().cpu().numpy()
-                #     score = np.mean(score)
-                #     score_list.append((token_count, score))
-                #     # embedding_list.append((token_count, embeds.detach().cpu().numpy()))
-                #     token_count += 1
+                    import pdb
+                    pdb.set_trace()
+
+                    # todo: Merge ensemble with CRPS
+
+                    # Merge ensemble with MEAN
+                    outputs = torch.mean(outputs, dim=2, keepdim=True)
+
+                    output_list.append(outputs.detach().cpu().numpy())
+                    batch_x = batch_x[:, -self.args.patch_len:, :]
+                    batch_y = batch_y[:, -self.args.patch_len:]
+                    input_list.append(batch_x[0, :, -1].detach().cpu().numpy())
+                    test_labels.append(batch_y.reshape(-1).detach().cpu().numpy())
+                    # import pdb; pdb.set_trace()
+                    score = self.anomaly_criterion(outputs, batch_x)
+                    score_list.append(score.detach().cpu().numpy())
+
+
+                    # outputs = self.model(batch_x[:, :-self.args.patch_len, :], None, None, None)[:,-self.args.patch_len:, :]
+                else:
+                    outputs = self.model(batch_x[:, :-self.args.patch_len, :], None, None, None)[:, -self.args.patch_len:, :]
+                    output_list.append(outputs[0, :, -1].detach().cpu().numpy())
+                    # import pdb
+                    # pdb.set_trace()
+                    batch_x = batch_x[:, -self.args.patch_len:, :]
+                    batch_y = batch_y[:, -self.args.patch_len:]
+                    input_list.append(batch_x[0, :, -1].detach().cpu().numpy())
+                    test_labels.append(batch_y.reshape(-1).detach().cpu().numpy())
+
+                    score = self.anomaly_criterion(outputs, batch_x)
+                    score_list.append(score.detach().cpu().numpy())
+                if i % 50 == 0:
+                    cost_time = time.time() - time_now
+                    print(
+                        "\titers: {0}, cost_time: {1:.0f} | memory: allocated {2:.0f}MB, reserved {3:.0f}MB, cached {4:.0f}MB "
+                        .format(i,  cost_time,
+                                torch.cuda.memory_allocated() / 1024 / 1024,
+                                torch.cuda.memory_reserved() / 1024 / 1024,
+                                torch.cuda.memory_cached() / 1024 / 1024))
+                    time_now = time.time()
         
         #* Evaluate metrics
         test_labels = np.concatenate(test_labels, axis=0).flatten()
@@ -330,115 +320,16 @@ class Exp_Anomaly_Detection_AR(Exp_Basic):
         print("Results appended to", csv_file)
 
         #* visualization
-        # half_patch_len = self.args.patch_len // 2
-        # input_border = input[border1 - border_start - half_patch_len:border2 - border_start + half_patch_len]
-        # output_border = output[border1 - border_start - half_patch_len:border2 - border_start + half_patch_len]
-        # if not self.args.use_ims:
-        #     border_start = border_start - self.args.patch_len
         input_border = input[border1 - border_start - self.args.patch_len*5 : border2 - border_start + self.args.patch_len*5]
         output_border = output[border1 - border_start - self.args.patch_len*5:border2 - border_start + self.args.patch_len*5]
         best_pred_border = best_pred[border1 - border_start - self.args.patch_len*5:border2 - border_start + self.args.patch_len*5]
         data_path = os.path.join(folder_path, setting)
-        if self.args.use_ims:
-            file_path_border = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_ims_border.pdf'
-            file_path = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_ims_testset.pdf'
-        else:
-            file_path_border = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_border.pdf'
-            file_path = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_testset.pdf'
+        file_path_border = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_AR_border.pdf'
+        file_path = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_AR_testset.pdf'
         if not os.path.exists(data_path):
             os.makedirs(data_path)
 
         visual_anomaly(input_border, output_border, best_pred_border, self.args.patch_len*5, input_border.shape[0]-self.args.patch_len*5, file_path_border)
         visual_anomaly(input, output, best_pred, border1-border_start, border2-border_start, file_path)
-        
-        def is_overlap(index):
-            start = index * self.args.patch_len + border_start
-            end = start + self.args.patch_len
-            if border1 <= start <= border2 or border1 <= end <= border2 or start <= border1 and end >= border2:
-                return True
-            else:
-                return False
-            
-        if self.args.show_embedding:
-            # Gerneral embedding
-            embedding = np.concatenate(embedding_list, axis=0) # (test data length, rec_token_count, d_model)
-            # Patch-wise embedding
-            embedding_in_patch = np.concatenate(embedding_list, axis=0).reshape(-1, embedding_list[0].shape[-1]) # (test data length * rec_token_count, d_model)
 
-            label=[]
-            for index in range(embedding_in_patch.shape[0]):
-                if is_overlap(index):
-                    label.append(1)
-                else:
-                    label.append(0)
-            if self.args.use_PCA:
-                visualization_PCA(
-                    X=embedding_in_patch,
-                    labels=np.array(label),
-                    token_nums=2,
-                    path=data_path, 
-                    name=self.args.data_path[:self.args.data_path.find('.')]+'_embedding_PCA.pdf'
-                )
-            else:
-                visualization(
-                    X=embedding_in_patch,
-                    labels=np.array(label),
-                    token_nums=2,
-                    perplexity=self.args.tsne_perplexity,
-                    path=data_path, 
-                    name=self.args.data_path[:self.args.data_path.find('.')]+f'_embedding_perplexity{self.args.tsne_perplexity}.pdf'
-                )
-        if self.args.show_feature:
-            # Gerneral embedding
-            feature = np.concatenate(feature_list, axis=0) # (test data length, rec_token_count, d_model)
-            # Patch-wise embedding
-            feature_in_patch = np.concatenate(feature_list, axis=0).reshape(-1, feature_list[0].shape[-1]) # (test data length * rec_token_count, d_model)
-            label=[]
-            for index in range(feature_in_patch.shape[0]):
-                if is_overlap(index):
-                    label.append(1)
-                else:
-                    label.append(0)
-            if self.args.use_PCA:
-                visualization_PCA(
-                    X=feature_in_patch,
-                    labels=np.array(label),
-                    token_nums=2,
-                    path=data_path, 
-                    name=self.args.data_path[:self.args.data_path.find('.')]+'_feature_PCA.pdf'
-                )
-            else:
-                visualization(
-                    X=feature_in_patch,
-                    labels=np.array(label),
-                    token_nums=2,
-                    perplexity=self.args.tsne_perplexity,
-                    path=data_path, 
-                    name=self.args.data_path[:self.args.data_path.find('.')]+f'_feature_perplexity{self.args.tsne_perplexity}.pdf'
-                )
-        if self.args.show_score:
-            score_in_patch = score_list.reshape(-1, self.args.patch_len) # (test data length * rec_token_count, patch_len)
-            label=[]
-            for index in range(score_in_patch.shape[0]):
-                if is_overlap(index):
-                    label.append(1)
-                else:
-                    label.append(0)
-            if self.args.use_PCA:
-                visualization_PCA(
-                    X=score_in_patch,
-                    labels=np.array(label),
-                    token_nums=2,
-                    path=data_path, 
-                    name=self.args.data_path[:self.args.data_path.find('.')]+'_score_PCA.pdf'
-                )
-            else:
-                visualization(
-                    X=score_in_patch,
-                    labels=np.array(label),
-                    token_nums=2,
-                    perplexity=self.args.tsne_perplexity,
-                    path=data_path, 
-                    name=self.args.data_path[:self.args.data_path.find('.')]+f'_score_perplexity{self.args.tsne_perplexity}.pdf'
-                )
         return

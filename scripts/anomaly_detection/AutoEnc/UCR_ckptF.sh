@@ -39,7 +39,7 @@ python -u run.py \
   --subset_rand_ratio $subset_rand_ratio \
   --train_epochs 10 \
   --use_mask \
-  --mask_rate 0.25 \
+  --mask_rate 0 \
   --date_record
 
 if ((counter>4)); then

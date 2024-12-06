@@ -370,7 +370,10 @@ class UCRAnomalyloader(Dataset):
         if self.flag == "train":
             self.stride = 1
         else:
-            self.stride = self.seq_len - 2 * self.patch_len
+            if self.args.task_name == 'anomaly_detection_AR':
+                self.stride = self.patch_len
+            else:
+                self.stride = self.seq_len - 2 * self.patch_len
             # if self.args.use_ims:
             #     self.stride = self.seq_len - 2 * self.patch_len
             # else:

@@ -10,7 +10,7 @@ import torch.distributed as dist
 from exp.exp_forecast import Exp_Forecast
 from exp.exp_anomaly_detection import Exp_Anomaly_Detection
 from exp.exp_anomaly_detection_AEAR import Exp_Anomaly_Detection_AEAR # deprecated
-from exp.exp_anomaly_detection_AE import Exp_Anomaly_Detection_AE
+from exp.exp_anomaly_detection_AE_noise_mask import Exp_Anomaly_Detection_AE
 from exp.exp_anomaly_detection_AR import Exp_Anomaly_Detection_AR
 from exp.exp_imputation import Exp_Imputation
 from exp.exp_visualize import Exp_Visualize

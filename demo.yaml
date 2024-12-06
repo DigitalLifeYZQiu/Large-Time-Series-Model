@@ -1,0 +1,93 @@
+apiVersion: kubeflow.org/v1
+kind: PyTorchJob
+metadata:
+  name: axq-test
+spec:
+  runPolicy:
+    schedulingPolicy:
+      priorityClass: high
+      queue: default
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        spec:
+          imagePullSecrets:
+            - name: vast-secret
+          containers:
+          ################
+            - image: ccr-23gxup9u-vpc.cnc.bj.baidubce.com/model/ltsm:v2
+              name: pytorch
+              workingDir: /mnt/pfs/users/anxingqiao/workspace/Large-Time-Series-Model
+              securityContext:
+                capabilities:
+                  add: ["IPC_LOCK"]
+              resources:
+                limits:
+        ##########################
+                  # baidu.com/a800_80g_cgpu: "1" # gpu资源有限，如无需要，建议设置为1。
+                  # baidu.com/rtx_3090_cgpu: "1"
+                  baidu.com/rtx_4090_cgpu: "1"
+                  # rdma/hca: 1
+                  # cpu: 15
+                  # memory: 50Gi
+                requests:
+                  # baidu.com/a800_80g_cgpu: "1" # gpu资源有限，如无需要，建议设置为1。
+                  # baidu.com/rtx_3090_cgpu: "1"
+                  baidu.com/rtx_4090_cgpu: "1"
+                  # rdma/hca: 1
+                  # cpu: 15
+                  # memory: 50Gi
+              command:
+                - "/bin/bash"
+                - "-c"
+                - "sleep inf"
+                # - "xvfb-run -a python meshudf.py     --scene_list debug_list.txt     --output out_debug     --selected_indices 0 30899     --save_visualization     --resolution 1024     --chunk_size 5     --mc_method cudamc  --save_mesh"
+                # - "python train.py --config exps/fit-gs-encode/shapenet/chair-full-noise-init@20231022-230634/configs/parsed.yaml --test resume=latest"
+                # - "python train.py --config config/lvis.yaml --train --gpu 0,1,2,3 data.num_seq=1 data.num_workers=16 data.batch_size=4 tag=lvis1"
+                # - "python train.py --config config/lvis.yaml --train data.num_workers=12 data.batch_size=12 data.num_seq=100 data.num_min=100 tag=debug"
+              env:
+                - name: NCCL_DEBUG
+                  value: INFO
+                - name: NCCL_IB_DISABLE
+                  value: "0"
+                - name: NCCL_P2P_DISABLE
+                  value: "1"
+                - name: HF_HOME
+                  value: /mnt/pfs/share/pretrained_model/.cache/huggingface/
+                - name: TRANSFORMERS_OFFLINE
+                  value: "1"
+                - name: DIFFUSERS_OFFLINE
+                  value: "1"
+                - name: HF_HUB_OFFLINE
+                  value: "1"
+                - name: OMP_NUM_THREADS
+                  value: "1"                  
+                - name: OPENCV_IO_ENABLE_OPENEXR
+                  value: "1"
+                - name: TORCH_HOME
+                  value: /mnt/pfs/share/pretrained_model/.cache/torch
+                - name: NVIDIA_DRIVER_CAPABILITIES
+                  value: graphics,compute,utility
+              volumeMounts:
+                - mountPath: /mnt/pfs
+                  name: pfs
+                - mountPath: /dev/shm
+                  name: cache-volume
+          volumes:
+            - name: pfs
+              hostPath:
+                path: /mnt/pfs
+            - emptyDir:
+                medium: Memory
+              name: cache-volume
+          priorityClassName: normal
+          schedulerName: volcano
+          # affinity:
+          #   nodeAffinity:
+          #     requiredDuringSchedulingIgnoredDuringExecution:
+          #       nodeSelectorTerms:
+          #         - matchExpressions:
+          #           - key: scattered-gpu-pool
+          #             operator: Exists

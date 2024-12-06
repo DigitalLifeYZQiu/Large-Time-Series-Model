@@ -135,9 +135,11 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
                         mask_rate = self.args.mask_rate
                         mask_patch_len = 4
                         mask_stride = 4
-                        mask = patch_mask(batch_x, mask_rate, mask_patch_len, mask_stride)
-                        mask = expand_tensor(mask, mask_patch_len)
-                        mask = mask.reshape(B, N, -1)[:, :, :T].permute(0, 2, 1)
+                        mask = noise_mask(batch_x, mask_rate)
+                        # mask = expand_tensor(mask, mask_patch_len)
+                        # mask = mask.reshape(B, N, -1)[:, :, :T].permute(0, 2, 1)
+                        # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+                        mask = mask.to(batch_x.device)
                         inp = batch_x * mask.int()
 
                         outputs = self.model(inp[:, self.args.patch_len:, :], None, None, None, mask)

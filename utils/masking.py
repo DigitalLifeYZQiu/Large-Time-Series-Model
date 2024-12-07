@@ -129,7 +129,7 @@ def patch_mask(x, mask_ratio, patch_len=12, stride=12):
 
     return mask
 
-def patch_random_mask(xb, mask_ratio):
+def patch_random_mask(xb, mask_ratio=0.25):
     """
     An enhanced version of patch masking in random strategy
     """
@@ -164,7 +164,7 @@ def patch_random_mask(xb, mask_ratio):
     return x_masked, x_kept, mask, ids_restore
 
 # MAE Masking
-def MAE_random_mask(xb, mask_ratio=0.75):
+def MAE_random_mask(xb, mask_ratio=0.25):
 
     bs, L, nvars, D = xb.shape  # xb: [bs x num_patch x n_vars x patch_len]
     x = xb.clone()
@@ -201,6 +201,22 @@ def MAE_random_mask(xb, mask_ratio=0.75):
 
 #####################################################################################################
 
+def masking(x, mask_type, mask_ratio=0.25, patch_len=12, stride=12, noise_lm=3, noise_distribution='geometric', noise_exclude_feats=None):
+    """
+    The overall masking function. Return mask result.
+    """
+    if mask_type == 'patch_mask':
+        mask = patch_mask(x, mask_ratio, patch_len, stride)
+    elif mask_type == 'patch_random_mask':
+        x_masked, x_kept, mask, ids_restore = patch_random_mask(x, mask_ratio)
+    elif mask_type == 'MAE_random_mask':
+        x_masked, x_kept, mask, ids_restore = patch_MAE_random_mask(x, mask_ratio)
+    elif mask_type == 'noise_mask':
+        mask = noise_mask(x, mask_ratio, noise_lm, noise_distribution, noise_exclude_feats)
+    else:
+        mask = torch.ones_like(x)
+    return torch.tensor(mask)
+
 
 def one_hot_encoding(X):
     X = [int(x) for x in X]
@@ -236,24 +252,24 @@ def expand_tensor(input_tensor, third_dim_size):
     return expanded_tensor.bool()
 
 # todo: reference
-def masking(x, keepratio=0.9, mask= 'binomial'):
-    global mask_id
-    nan_mask = ~x.isnan().any(axis=-1)
-    x[~nan_mask] = 0
-    # x = self.input_fc(x)  # B x T x Ch
-
-    if mask == 'binomial':
-        mask_id = generate_binomial_mask(x.size(0), x.size(1), x.size(2), p=keepratio).to(x.device)
-    # elif mask == 'continuous':
-    #     mask = generate_continuous_mask(x.size(0), x.size(1)).to(x.device)
-    elif mask == 'all_true':
-        mask = x.new_full((x.size(0), x.size(1)), True, dtype=torch.bool)
-    elif mask == 'all_false':
-        mask = x.new_full((x.size(0), x.size(1)), False, dtype=torch.bool)
-    elif mask == 'mask_last':
-        mask = x.new_full((x.size(0), x.size(1)), True, dtype=torch.bool)
-        mask[:, -1] = False
-
-    # mask &= nan_mask
-    x[~mask_id] = 0
-    return x
+# def masking(x, keepratio=0.9, mask= 'binomial'):
+#     global mask_id
+#     nan_mask = ~x.isnan().any(axis=-1)
+#     x[~nan_mask] = 0
+#     # x = self.input_fc(x)  # B x T x Ch
+#
+#     if mask == 'binomial':
+#         mask_id = generate_binomial_mask(x.size(0), x.size(1), x.size(2), p=keepratio).to(x.device)
+#     # elif mask == 'continuous':
+#     #     mask = generate_continuous_mask(x.size(0), x.size(1)).to(x.device)
+#     elif mask == 'all_true':
+#         mask = x.new_full((x.size(0), x.size(1)), True, dtype=torch.bool)
+#     elif mask == 'all_false':
+#         mask = x.new_full((x.size(0), x.size(1)), False, dtype=torch.bool)
+#     elif mask == 'mask_last':
+#         mask = x.new_full((x.size(0), x.size(1)), True, dtype=torch.bool)
+#         mask[:, -1] = False
+#
+#     # mask &= nan_mask
+#     x[~mask_id] = 0
+#     return x

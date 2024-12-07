@@ -120,6 +120,7 @@ if __name__ == '__main__':
     # imputation task & anomaly detection task
     parser.add_argument('--use_mask', action='store_true', help='apply masking to input data in auto-encoding form anomaly detection', default=False)
     parser.add_argument('--mask_rate', type=float, default=0.25, help='mask ratio')
+    parser.add_argument('--mask_type', type=str, default=None, help='mask type')
     parser.add_argument('--use_ensemble_forecast', action='store_true', help='use ensemble forecasting in auto-regressive form anomaly detection', default=False)
 
     # visualization

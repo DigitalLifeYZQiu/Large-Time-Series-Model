@@ -20,7 +20,7 @@ echo $counter
 python -u run.py \
   --task_name anomaly_detection_AR \
   --is_training 1 \
-  --is_finetuning 1 \
+  --is_finetuning 0 \
   --root_path ./dataset/UCR_Anomaly_FullData \
   --data_path $data_file \
   --model_id UCRA_$data_file \
@@ -38,7 +38,7 @@ python -u run.py \
   --batch_size 128 \
   --subset_rand_ratio $subset_rand_ratio \
   --train_epochs 10 \
-  --use_ims \
+  --use_ensemble_forecast \
   --date_record
 
 if ((counter>4)); then

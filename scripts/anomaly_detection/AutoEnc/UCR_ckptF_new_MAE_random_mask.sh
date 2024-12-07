@@ -17,8 +17,8 @@ do
 data_file=$(basename "$file_path")
 ((counter++))
 echo $counter
-python -u run.py \
-  --task_name anomaly_detection \
+python -u run_MAE_random_mask.py \
+  --task_name anomaly_detection_AE \
   --is_training 1 \
   --is_finetuning 1 \
   --root_path ./dataset/UCR_Anomaly_FullData \
@@ -38,7 +38,11 @@ python -u run.py \
   --batch_size 128 \
   --subset_rand_ratio $subset_rand_ratio \
   --train_epochs 10 \
-  --date_record
+  --use_gpu True \
+  --use_mask \
+  --mask_rate $1 \
+  --date_record \
+
 
 if ((counter>4)); then
   break

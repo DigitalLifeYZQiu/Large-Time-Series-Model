@@ -17,7 +17,7 @@ do
 data_file=$(basename "$file_path")
 ((counter++))
 echo $counter
-python -u run.py \
+python -u run_MAE_random_mask.py \
   --task_name anomaly_detection_AE \
   --is_training 1 \
   --is_finetuning 1 \
@@ -40,7 +40,7 @@ python -u run.py \
   --train_epochs 10 \
   --use_gpu True \
   --use_mask \
-  --mask_rate 0.25 \
+  --mask_rate $1 \
   --date_record \
 
 

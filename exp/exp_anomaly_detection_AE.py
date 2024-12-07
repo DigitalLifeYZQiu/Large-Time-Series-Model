@@ -19,7 +19,7 @@ import os
 import time
 import warnings
 import numpy as np
-from utils.masking import patch_mask, expand_tensor
+from utils.masking import patch_mask, expand_tensor, noise_mask
 
 warnings.filterwarnings('ignore')
 
@@ -68,6 +68,7 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
                         # masked reconstruction task
                         # random mask
                         B, T, N = batch_x.shape
+                        # print("batch_x:",batch_x.shape)
                         assert T % self.args.patch_len == 0
                         mask = torch.rand((B, T // self.args.patch_len, N)).to(self.device)
                         mask = mask.unsqueeze(2).repeat(1, 1, self.args.patch_len, 1)
@@ -113,6 +114,7 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
+            print("mask_rate:",self.args.mask_rate)
             for i, batch_x in enumerate(train_loader):
                 iter_count += 1
                 model_optim.zero_grad()
@@ -127,6 +129,7 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
                         # masked reconstruction task
                         # random mask
                         B, T, N = batch_x.shape # (B,S,C)
+                        # print("batch_x.shape:",batch_x.shape)
                         assert T % self.args.patch_len == 0
 
                         mask_rate = self.args.mask_rate
@@ -136,6 +139,7 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
                         mask = expand_tensor(mask, mask_patch_len)
                         mask = mask.reshape(B, N, -1)[:, :, :T].permute(0, 2, 1)
                         inp = batch_x * mask.int()
+                        # print("inp:",inp.shape)
 
                         outputs = self.model(inp[:, self.args.patch_len:, :], None, None, None, mask)
                         batch_x = batch_x[:, self.args.patch_len:, :]

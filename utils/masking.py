@@ -133,7 +133,7 @@ def patch_random_mask(xb, mask_ratio=0.25):
     """
     An enhanced version of patch masking in random strategy
     """
-    # xb: [bs x num_patch x n_vars x patch_len]
+    # xb: [bs x num_patch x n_vars x patch_len]128 x 768/96 x 1 x 96
     bs, L, nvars, D = xb.shape
     x = xb.clone()
 

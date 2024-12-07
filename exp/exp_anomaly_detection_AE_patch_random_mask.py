@@ -19,7 +19,7 @@ import os
 import time
 import warnings
 import numpy as np
-from utils.masking import patch_mask, expand_tensor, noise_mask
+from utils.masking import patch_mask, expand_tensor, noise_mask, patch_random_mask
 
 warnings.filterwarnings('ignore')
 
@@ -133,14 +133,18 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
                         assert T % self.args.patch_len == 0
 
                         mask_rate = self.args.mask_rate
-                        mask_patch_len = 4
-                        mask_stride = 4
-                        mask = noise_mask(batch_x, mask_rate)
+                        # mask_patch_len = 4
+                        # mask_stride = 4
+                        # print("T/self.args.patch_len:",T/self.args.patch_len)
+                        reshaped_batch_x = batch_x.view(B, int(T/self.args.patch_len), self.args.patch_len, N)
+                        reshaped_batch_x = reshaped_batch_x.permute(0, 1, 3, 2)
+                        x_masked, x_kept, mask, ids_restore = patch_random_mask(reshaped_batch_x, mask_rate)
                         # mask = expand_tensor(mask, mask_patch_len)
                         # mask = mask.reshape(B, N, -1)[:, :, :T].permute(0, 2, 1)
-                        # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-                        mask = mask.to(batch_x.device)
-                        inp = batch_x * mask.int()
+                        inp = x_masked
+                        inp = inp.permute(0, 1, 3, 2)
+                        inp = inp.view(B, T, N)
+                        # print("inp:",inp.shape)
 
                         outputs = self.model(inp[:, self.args.patch_len:, :], None, None, None, mask)
                         batch_x = batch_x[:, self.args.patch_len:, :]

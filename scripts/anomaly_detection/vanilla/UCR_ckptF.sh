@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 
 model_name=Timer
 ckpt_path=checkpoints/Timer_forecast_1.0.ckpt

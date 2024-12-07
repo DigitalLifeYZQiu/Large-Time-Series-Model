@@ -10,7 +10,7 @@ import torch.distributed as dist
 from exp.exp_forecast import Exp_Forecast
 from exp.exp_anomaly_detection import Exp_Anomaly_Detection
 from exp.exp_anomaly_detection_AEAR import Exp_Anomaly_Detection_AEAR # deprecated
-from exp.exp_anomaly_detection_AE import Exp_Anomaly_Detection_AE
+from exp.exp_anomaly_detection_AE_MAE_random_mask import Exp_Anomaly_Detection_AE
 from exp.exp_anomaly_detection_AR import Exp_Anomaly_Detection_AR
 from exp.exp_imputation import Exp_Imputation
 from exp.exp_visualize import Exp_Visualize
@@ -118,9 +118,8 @@ if __name__ == '__main__':
     parser.add_argument('--pred_len', type=int, default=96, help='prediction sequence length')
 
     # imputation task & anomaly detection task
-    parser.add_argument('--use_mask', action='store_true', help='apply masking to input data in auto-encoding form anomaly detection', default=False)
+    parser.add_argument('--use_mask', action='store_true', help='apply masking to input data', default=False)
     parser.add_argument('--mask_rate', type=float, default=0.25, help='mask ratio')
-    parser.add_argument('--use_ensemble_forecast', action='store_true', help='use ensemble forecasting in auto-regressive form anomaly detection', default=False)
 
     # visualization
     parser.add_argument('--show_embedding', action='store_true', help='plot embedding tsne result', default=False)

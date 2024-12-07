@@ -40,7 +40,7 @@ python -u run.py \
   --train_epochs 10 \
   --use_gpu True \
   --use_mask \
-  --mask_rate 0.25 \
+  --mask_rate $1 \
   --date_record \
 
 

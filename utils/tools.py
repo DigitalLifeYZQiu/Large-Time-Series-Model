@@ -186,6 +186,36 @@ class StandardScaler():
         return (data * self.std) + self.mean
 
 
+def find_segments(arr):
+    """
+    return the indices of the segments of 1s within a segment
+    """
+    arr = np.array(arr)
+    diff = np.diff(np.concatenate(([0], arr, [0])))  # Add boundaries
+    starts = np.where(diff == 1)[0]
+    ends = np.where(diff == -1)[0] - 1
+    return list(zip(starts, ends))
+
+def find_segment_lengths(arr):
+    """
+    return the length of segment of 1s in arr
+    """
+    lengths = []
+    current_length = 0
+    
+    for val in arr:
+        if val == 1:
+            current_length += 1
+        else:
+            if current_length > 0:
+                lengths.append(current_length)
+                current_length = 0
+    
+    if current_length > 0:  # Add the last segment if necessary
+        lengths.append(current_length)
+    
+    return lengths
+
 def visual(true, preds=None, name='./pic/test.pdf'):
     """
     Results visualization
@@ -207,13 +237,83 @@ def visual_anomaly(true, preds=None, best_pred=None, border1=None, border2=None,
     if best_pred is not None:
         selected = np.where(best_pred)[0]
         for i in selected:
-            plt.axvline(x=i, color='#FF00EE', alpha=0.5, linewidth=0.1)
+            plt.axvline(x=i, color='purple', alpha=0.1, linewidth=0.1)
     if border1 is not None and border2 is not None:
         plt.axvspan(border1, border2, alpha=0.25, color='red')
     plt.plot(true, label='GroundTruth', c='tomato', linewidth=0.5)
     plt.legend(loc='upper left')
     plt.savefig(name, bbox_inches='tight')
     print(f'Plot saved to {name}')
+    
+def visual_anomaly_segment(true, preds=None, best_pred=None, label=None, name='./pic/test.pdf'):
+    """
+    Results visualization
+    """
+    plt.figure()
+    if preds is not None:
+        plt.plot(preds, label='Prediction', c='dodgerblue', linewidth=0.5)
+    if best_pred is not None:
+        selected = np.where(best_pred)[0]
+        for i in selected:
+            plt.axvline(x=i, color='purple', alpha=0.1, linewidth=0.1)
+    # import pdb; pdb.set_trace()
+    segments = find_segments(label)
+    if segments is not None:
+        for (border1, border2) in segments:
+            plt.axvspan(border1, border2, alpha=0.25, color='green')
+    plt.plot(true, label='GroundTruth', c='tomato', linewidth=0.5)
+    plt.legend(loc='upper left')
+    plt.savefig(name, bbox_inches='tight')
+    print(f'Plot saved to {name}')
+    
+def visual_anomaly_segment_MS(true, preds=None, best_pred=None, label=None, name='./pic/test.pdf'):
+    """
+    Results visualization
+    """
+    S,C = true.shape[-2:]
+    segments = find_segments(label)
+    fig, axes = plt.subplots(C, 1, figsize=(8, 2 * C), sharex=True)# create subplots
+    if C==1:
+        axes = [axes]# If there's only one variate, ensure axes is iterable
+    
+    if segments is not None:
+        for border1, border2 in segments:
+            name_split = name.split('.')
+            name_split[-2] += f'_seg_{border1}_{border2}'
+            seg_name = '.'.join(name_split)
+            for i in range(C):
+                left = border1-1000 if (border1-1000)>0 else 0
+                right = border2+1000 if (border2+1000)<S else S-1
+                # True anomaly span
+                axes[i].axvspan(border1-left, border2-left, alpha=0.25, color='green')
+                # true value
+                axes[i].plot(true[left:right, i], label='GroundTruth', c='tomato', linewidth=0.5)
+                # prediction value
+                if preds is not None:
+                    axes[i].plot(preds[left:right, i], label='Prediction', c='dodgerblue', linewidth=0.5)
+                    axes[i].set_title(f'Variate {i + 1}')
+                    axes[i].grid(True)
+                if best_pred is not None:
+                    selected = np.where(best_pred[left:right])[0]
+                    for select in selected:
+                        axes[i].axvline(x=select, color='purple', alpha=0.1, linewidth=0.1)
+        
+                
+                # plt.legend(loc='upper left')
+            plt.savefig(seg_name, bbox_inches='tight')
+            print(f'Plot saved to {seg_name}')
+
+def visual_anomaly_segment_Multi(true, preds=None, best_pred=None, label=None, name='./pic/test.pdf'):
+    """
+    Results visualization
+    """
+    S,C = true.shape[-2:]
+    for i in range(C):
+        name_split = name.split('.')
+        name_split[-2]+=f'_val_{i}'
+        val_name = '.'.join(name_split)
+        visual_anomaly_segment(true=true[:,i], preds=preds[:, i], best_pred=best_pred, label=label, name=val_name)
+    
 
 
 def attn_map(attn, path='./pic/attn_map.pdf'):

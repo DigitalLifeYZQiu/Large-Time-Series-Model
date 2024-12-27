@@ -1,8 +1,7 @@
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 
 model_name=Timer
 ckpt_path=checkpoints/Timer_forecast_1.0.ckpt
-#ckpt_path=checkpoints/timer-base.ckpt
 seq_len=768
 d_model=1024
 d_ff=2048
@@ -39,6 +38,8 @@ python -u run.py \
   --batch_size 128 \
   --subset_rand_ratio $subset_rand_ratio \
   --train_epochs 20 \
+  --use_ensemble_forecast \
+  --ensemble_type crps\
   --date_record
 
 if ((counter>4)); then

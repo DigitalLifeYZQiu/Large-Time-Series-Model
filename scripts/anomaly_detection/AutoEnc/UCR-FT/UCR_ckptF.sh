@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 model_name=Timer
 ckpt_path=checkpoints/Timer_forecast_1.0.ckpt
@@ -17,7 +17,7 @@ do
 data_file=$(basename "$file_path")
 ((counter++))
 echo $counter
-python -u run_patch_random_mask.py \
+python -u run.py \
   --task_name anomaly_detection_AE \
   --is_training 1 \
   --is_finetuning 1 \
@@ -35,12 +35,10 @@ python -u run_patch_random_mask.py \
   --patch_len $patch_len \
   --e_layers $e_layers \
   --train_test 0 \
-  --batch_size 128 \
+  --batch_size 2048 \
   --subset_rand_ratio $subset_rand_ratio \
-  --train_epochs 10 \
+  --train_epochs 20 \
   --use_gpu True \
-  --use_mask \
-  --mask_rate $1 \
   --date_record \
 
 

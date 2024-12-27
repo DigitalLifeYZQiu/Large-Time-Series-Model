@@ -1,8 +1,7 @@
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=2
 
 model_name=Timer
-ckpt_path=checkpoints/Timer_forecast_1.0.ckpt
-#ckpt_path=checkpoints/timer-base.ckpt
+ckpt_path=random
 seq_len=768
 d_model=1024
 d_ff=2048
@@ -19,7 +18,7 @@ data_file=$(basename "$file_path")
 ((counter++))
 echo $counter
 python -u run.py \
-  --task_name anomaly_detection_AR \
+  --task_name anomaly_detection_AE \
   --is_training 1 \
   --is_finetuning 1 \
   --root_path ./dataset/UCR_Anomaly_FullData \
@@ -38,8 +37,12 @@ python -u run.py \
   --train_test 0 \
   --batch_size 128 \
   --subset_rand_ratio $subset_rand_ratio \
-  --train_epochs 20 \
-  --date_record
+  --train_epochs 10 \
+  --use_gpu True \
+  --use_mask \
+  --mask_rate 0.25 \
+  --date_record \
+
 
 if ((counter>4)); then
   break

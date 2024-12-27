@@ -3,6 +3,7 @@ from utils.tools import adjustment
 from collections import Counter
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score
+from tqdm import tqdm,trange
 
 def f1_score(predict, actual):
     TP = np.sum(predict * actual)

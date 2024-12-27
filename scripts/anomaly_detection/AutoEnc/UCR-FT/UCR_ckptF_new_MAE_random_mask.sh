@@ -1,8 +1,7 @@
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 
 model_name=Timer
 ckpt_path=checkpoints/Timer_forecast_1.0.ckpt
-#ckpt_path=checkpoints/timer-base.ckpt
 seq_len=768
 d_model=1024
 d_ff=2048
@@ -10,16 +9,19 @@ e_layers=8
 patch_len=96
 subset_rand_ratio=1
 dataset_dir="./dataset/UCR_Anomaly_FullData"
-counter=0
+
 
 # ergodic datasets
+for mask_rate in 0.25 0.5 0.75
+do
+counter=0
 for file_path in "$dataset_dir"/*
 do
 data_file=$(basename "$file_path")
 ((counter++))
 echo $counter
 python -u run.py \
-  --task_name anomaly_detection_AR \
+  --task_name anomaly_detection_AE \
   --is_training 1 \
   --is_finetuning 1 \
   --root_path ./dataset/UCR_Anomaly_FullData \
@@ -36,13 +38,18 @@ python -u run.py \
   --patch_len $patch_len \
   --e_layers $e_layers \
   --train_test 0 \
-  --batch_size 128 \
+  --batch_size 1024 \
   --subset_rand_ratio $subset_rand_ratio \
   --train_epochs 20 \
-  --date_record
+  --use_gpu True \
+  --use_mask \
+  --mask_rate $mask_rate \
+  --mask_type MAE_random_mask \
+  --date_record \
+
 
 if ((counter>4)); then
   break
 fi
-
+done
 done

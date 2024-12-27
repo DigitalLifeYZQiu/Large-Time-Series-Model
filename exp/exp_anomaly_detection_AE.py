@@ -2,7 +2,8 @@ import torch.multiprocessing
 
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from utils.tools import adjust_learning_rate, visual, visual_anomaly, adjustment
+from utils.tools import adjust_learning_rate, visual, visual_anomaly, adjustment, find_segment_lengths, find_segments, \
+    visual_anomaly_segment, visual_anomaly_segment_MS, visual_anomaly_segment_Multi
 from utils.tsne import visualization,visualization_PCA
 from utils.anomaly_detection_metrics import adjbestf1,f1_score
 from sklearn.metrics import precision_recall_fscore_support
@@ -19,8 +20,8 @@ import os
 import time
 import warnings
 import numpy as np
-from utils.masking import patch_mask, expand_tensor, noise_mask
-
+from utils.masking import patch_mask, expand_tensor, noise_mask, masking
+from tqdm import tqdm
 warnings.filterwarnings('ignore')
 
 
@@ -115,7 +116,7 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
             self.model.train()
             epoch_time = time.time()
             print("mask_rate:",self.args.mask_rate)
-            for i, batch_x in enumerate(train_loader):
+            for i, (batch_x, batch_y) in enumerate(train_loader):
                 iter_count += 1
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
@@ -127,21 +128,17 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
                     # input and output are completely aligned
                     if self.args.use_mask:
                         # masked reconstruction task
-                        # random mask
                         B, T, N = batch_x.shape # (B,S,C)
                         # print("batch_x.shape:",batch_x.shape)
                         assert T % self.args.patch_len == 0
 
-                        mask_rate = self.args.mask_rate
                         mask_patch_len = 4
                         mask_stride = 4
-                        mask = patch_mask(batch_x, mask_rate, mask_patch_len, mask_stride)
-                        mask = expand_tensor(mask, mask_patch_len)
-                        mask = mask.reshape(B, N, -1)[:, :, :T].permute(0, 2, 1)
-                        inp = batch_x * mask.int()
-                        # print("inp:",inp.shape)
+                        inp = masking(x=batch_x, mask_type=self.args.mask_type, mask_ratio=self.args.mask_rate,
+                                       patch_len=self.args.patch_len, mask_patch_len=mask_patch_len, mask_stride=mask_stride).to(self.device)
+                        
 
-                        outputs = self.model(inp[:, self.args.patch_len:, :], None, None, None, mask)
+                        outputs = self.model(inp[:, self.args.patch_len:, :], None, None, None)
                         batch_x = batch_x[:, self.args.patch_len:, :]
                     else:
                         outputs = self.model(batch_x[:, self.args.patch_len:, :], None, None, None)
@@ -217,17 +214,20 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
             status='_adaption'
         else:
             status='_zero-shot'
-        if self.args.use_ims:
-            status += '_ims'
+        status += '_AE'
         folder_path = './test_results/' + self.args.data + status +'/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
+        data_path = os.path.join(folder_path, setting)
+        if not os.path.exists(data_path):
+            os.makedirs(data_path)
 
         self.model.eval()
         self.anomaly_criterion = nn.MSELoss(reduce=False)
-
-        border_start = self.find_border_number(self.args.data_path)
-        border1, border2 = self.find_border(self.args.data_path)
+        
+        if self.args.data == 'UCRA':
+            border_start = self.find_border_number(self.args.data_path)
+            border1, border2 = self.find_border(self.args.data_path)
 
         token_count = 0
         if self.args.use_ims:
@@ -242,30 +242,30 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
         embedding_list = []
         feature_list = []
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(test_loader):
+            for i, (batch_x, batch_y) in tqdm(enumerate(test_loader),total=len(test_loader),leave = True):
                 batch_x = batch_x.float().to(self.device)
                 # reconstruct the input sequence and record the loss as a sorted list
-                if self.args.use_ims:
+                if self.args.use_ims: #AR
                     outputs = self.model(batch_x[:, :-self.args.patch_len, :], None, None, None)[:, :-self.args.patch_len, :]
                     batch_x = batch_x[:, self.args.patch_len:-self.args.patch_len, :]
                     batch_y = batch_y[:, self.args.patch_len:-self.args.patch_len]
                     # outputs = outputs[:, :-self.args.patch_len, :]
                     embeds = self.model.getEmbedding(batch_x)
                     features = self.model.getFeature(batch_x)
-                else:
+                else:#AE
                     outputs = self.model(batch_x[:, self.args.patch_len:-self.args.patch_len, :], None, None, None)
                     batch_x = batch_x[:, self.args.patch_len:-self.args.patch_len, :]
                     batch_y = batch_y[:, self.args.patch_len:-self.args.patch_len]
                     embeds = self.model.getEmbedding(batch_x)
                     features = self.model.getFeature(batch_x)
-                input_list.append(batch_x[0, :, -1].detach().cpu().numpy())
-                output_list.append(outputs[0, :, -1].detach().cpu().numpy())
+                input_list.append(batch_x[0, :, :].detach().cpu().numpy())
+                output_list.append(outputs[0, :, :].detach().cpu().numpy())
                 test_labels.append(batch_y.reshape(-1).detach().cpu().numpy())
                 embedding_list.append(embeds.detach().cpu().numpy())
                 feature_list.append(features.detach().cpu().numpy())
 
                 score = self.anomaly_criterion(outputs, batch_x)
-                score_list.append(score.detach().cpu().numpy()) 
+                score_list.append(score[0, :, :].detach().cpu().numpy())
                 # for j in range(rec_token_count):
                 #     # criterion
                 #     token_start = j * self.args.patch_len
@@ -280,14 +280,16 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
         
         #* Evaluate metrics
         test_labels = np.concatenate(test_labels, axis=0).flatten()
-        input = np.concatenate(input_list, axis=0).reshape(-1)
-        output = np.concatenate(output_list, axis=0).reshape(-1)
-        score_list = np.concatenate(score_list, axis=0).reshape(-1)
-        
+        # input = np.concatenate(input_list, axis=0).reshape(-1)
+        # output = np.concatenate(output_list, axis=0).reshape(-1)
+        # score_list = np.concatenate(score_list, axis=0).reshape(-1)
+        input = np.concatenate(input_list, axis=0)
+        output = np.concatenate(output_list, axis=0)
+        score_list = np.concatenate(score_list, axis=0)
 
         
         # 输出adjustment best f1及best f1在最佳阈值下的原始结果
-        best_pred_adj, best_pred = adjbestf1(test_labels, score_list, 100)
+        best_pred_adj, best_pred = adjbestf1(test_labels.reshape(-1), score_list.sum(axis=-1), 100)
         # 计算没有adjustment的结果
         gt = test_labels.astype(int)
         accuracy = accuracy_score(gt, best_pred.astype(int))
@@ -300,13 +302,13 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
         print("adjAccuracy : {:0.4f}, adjPrecision : {:0.4f}, adjRecall : {:0.4f}, adjF-score : {:0.4f} ".format(
             adjaccuracy, adjprecision, adjrecall, adjf_score))
         
-        accuracy = accuracy.astype(np.float32)
-        recall = recall.astype(np.float32)
-        f_score = f_score.astype(np.float32)
-        adjaccuracy = adjaccuracy.astype(np.float32)
-        adjprecision = adjprecision.astype(np.float32)
-        adjrecall = adjrecall.astype(np.float32)
-        adjf_score = adjf_score.astype(np.float32)
+        # accuracy = accuracy.astype(np.float32)
+        # recall = recall.astype(np.float32)
+        # f_score = f_score.astype(np.float32)
+        # adjaccuracy = adjaccuracy.astype(np.float32)
+        # adjprecision = adjprecision.astype(np.float32)
+        # adjrecall = adjrecall.astype(np.float32)
+        # adjf_score = adjf_score.astype(np.float32)
         # Write results to CSV file
         results = {
             "setting": [setting],
@@ -324,7 +326,7 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
             if not isinstance(results[key], collections.abc.Iterable):
                 results[key] = [results[key]]
 
-        csv_file = 'results.csv'
+        csv_file = data_path + '/' + 'results.csv'
 
 
         with open(csv_file, 'a', newline='') as file:
@@ -336,27 +338,23 @@ class Exp_Anomaly_Detection_AE(Exp_Basic):
         print("Results appended to", csv_file)
 
         #* visualization
-        # half_patch_len = self.args.patch_len // 2
-        # input_border = input[border1 - border_start - half_patch_len:border2 - border_start + half_patch_len]
-        # output_border = output[border1 - border_start - half_patch_len:border2 - border_start + half_patch_len]
-        # if not self.args.use_ims:
-        #     border_start = border_start - self.args.patch_len
-        input_border = input[border1 - border_start - self.args.patch_len*5 : border2 - border_start + self.args.patch_len*5]
-        output_border = output[border1 - border_start - self.args.patch_len*5:border2 - border_start + self.args.patch_len*5]
-        best_pred_border = best_pred[border1 - border_start - self.args.patch_len*5:border2 - border_start + self.args.patch_len*5]
-        data_path = os.path.join(folder_path, setting)
-        if self.args.use_ims:
-            file_path_border = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_ims_border.pdf'
-            file_path = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_ims_testset.pdf'
-        else:
-            file_path_border = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_border.pdf'
-            file_path = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')]+ '_testset.pdf'
-        if not os.path.exists(data_path):
-            os.makedirs(data_path)
-
-        visual_anomaly(input_border, output_border, best_pred_border, self.args.patch_len*5, input_border.shape[0]-self.args.patch_len*5, file_path_border)
-        visual_anomaly(input, output, best_pred, border1-border_start, border2-border_start, file_path)
         
+        if self.args.data=='UCRA':
+            file_path_border = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')] + '_AE_border.pdf'
+            file_path = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')] + '_AE_testset.pdf'
+        else:
+            file_path_border = data_path + '/' + self.args.data + '_AE_border.pdf'
+            file_path = data_path + '/' + self.args.data + '_AE_testset.pdf'
+        
+        visual_anomaly_segment_MS(input, output, best_pred, test_labels, file_path)
+        if self.args.data == 'UCRA':
+            input_border = input[border1 - border_start - self.args.patch_len * 10 : border2 - border_start + self.args.patch_len * 10]
+            output_border = output[border1 - border_start - self.args.patch_len * 10 : border2 - border_start + self.args.patch_len * 10]
+            test_labels_border = test_labels[border1 - border_start - self.args.patch_len * 10:border2 - border_start + self.args.patch_len * 10]
+            best_pred_border = best_pred[border1 - border_start - self.args.patch_len * 10:border2 - border_start + self.args.patch_len * 10]
+            file_path_border = data_path + '/' + self.args.data_path[:self.args.data_path.find('.')] + '_AR_border.pdf'
+            visual_anomaly_segment(input_border, output_border, best_pred_border, test_labels_border, file_path_border)
+            
         def is_overlap(index):
             start = index * self.args.patch_len + border_start
             end = start + self.args.patch_len

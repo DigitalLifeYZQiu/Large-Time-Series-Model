@@ -155,7 +155,8 @@ class Model(nn.Module):
             dec_out = self.imputation(
                 x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, T, D]
-        if self.task_name == 'anomaly_detection' or self.task_name == 'anomaly_detection_AEAR' or self.task_name == 'anomaly_detection_AE':
+        # if self.task_name == 'anomaly_detection' or self.task_name == 'anomaly_detection_AEAR' or self.task_name == 'anomaly_detection_AE':
+        if 'anomaly_detection' in self.task_name:
             dec_out = self.anomaly_detection(x_enc)
             return dec_out  # [B, T, D]
 

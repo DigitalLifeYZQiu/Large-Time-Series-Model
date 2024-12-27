@@ -4,7 +4,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, \
-    Dataset_Custom, Dataset_PEMS, UCRAnomalyloader
+    Dataset_Custom, Dataset_PEMS, UCRAnomalyloader, PSMSegLoader, MSLSegLoader, \
+    SMAPSegLoader, SMDSegLoader, SWATSegLoader
 from data_provider.data_loader_benchmark import CIDatasetBenchmark, \
     CIAutoRegressionDatasetBenchmark
 
@@ -15,6 +16,11 @@ data_dict = {
     'ETTm2': Dataset_ETT_minute,
     'PEMS': Dataset_PEMS,
     'custom': Dataset_Custom,
+    'PSM': PSMSegLoader,
+    'MSL': MSLSegLoader,
+    'SMAP': SMAPSegLoader,
+    'SMD': SMDSegLoader,
+    'SWAT': SWATSegLoader,
     'UCRA': UCRAnomalyloader,
 }
 
@@ -86,14 +92,23 @@ def data_provider(args, flag):
     # elif args.task_name == 'anomaly_detection' or args.task_name == 'anomaly_detection_AEAR':
     elif 'anomaly_detection' in args.task_name:
         drop_last = False
-        data_set = UCRAnomalyloader(
-            args=args,
-            root_path=args.root_path,
-            data_path=args.data_path,
-            seq_len=args.seq_len,
-            patch_len=args.patch_len,
-            flag=flag,
-        )
+        if args.data == 'UCRA':
+            data_set = UCRAnomalyloader(
+                args=args,
+                root_path=args.root_path,
+                data_path=args.data_path,
+                seq_len=args.seq_len,
+                patch_len=args.patch_len,
+                flag=flag,
+            )
+        else:
+            Data = data_dict[args.data]
+            data_set = Data(
+                args = args,
+                root_path=args.root_path,
+                win_size=args.seq_len,
+                flag=flag,
+            )
         print(flag, len(data_set))
         data_loader = DataLoader(
             data_set,

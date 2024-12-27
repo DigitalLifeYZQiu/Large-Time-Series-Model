@@ -1,7 +1,7 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=2
 
 model_name=Timer
-ckpt_path=checkpoints/Timer_forecast_1.0.ckpt
+ckpt_path=random
 seq_len=768
 d_model=1024
 d_ff=2048
@@ -41,6 +41,7 @@ python -u run.py \
   --use_gpu True \
   --use_mask \
   --mask_rate 0.25 \
+  --mask_type MAE_random_mask \
   --date_record \
 
 

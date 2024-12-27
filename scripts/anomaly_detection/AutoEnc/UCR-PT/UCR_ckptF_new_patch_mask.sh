@@ -1,7 +1,7 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=7
 
 model_name=Timer
-ckpt_path=checkpoints/Timer_forecast_1.0.ckpt
+ckpt_path=random
 seq_len=768
 d_model=1024
 d_ff=2048
@@ -40,8 +40,9 @@ python -u run.py \
   --train_epochs 10 \
   --use_gpu True \
   --use_mask \
-  --mask_rate $1 \
-  --date_record \
+  --mask_rate 0.25 \
+  --mask_type patch_mask \
+  --date_record
 
 
 if ((counter>4)); then

@@ -201,22 +201,6 @@ def MAE_random_mask(xb, mask_ratio=0.25):
 
 #####################################################################################################
 
-def masking(x, mask_type, mask_ratio=0.25, patch_len=12, stride=12, noise_lm=3, noise_distribution='geometric', noise_exclude_feats=None):
-    """
-    The overall masking function. Return mask result.
-    """
-    if mask_type == 'patch_mask':
-        mask = patch_mask(x, mask_ratio, patch_len, stride)
-    elif mask_type == 'patch_random_mask':
-        x_masked, x_kept, mask, ids_restore = patch_random_mask(x, mask_ratio)
-    elif mask_type == 'MAE_random_mask':
-        x_masked, x_kept, mask, ids_restore = patch_MAE_random_mask(x, mask_ratio)
-    elif mask_type == 'noise_mask':
-        mask = noise_mask(x, mask_ratio, noise_lm, noise_distribution, noise_exclude_feats)
-    else:
-        mask = torch.ones_like(x)
-    return torch.tensor(mask)
-
 
 def one_hot_encoding(X):
     X = [int(x) for x in X]
@@ -273,3 +257,29 @@ def expand_tensor(input_tensor, third_dim_size):
 #     # mask &= nan_mask
 #     x[~mask_id] = 0
 #     return x
+
+def masking(x, mask_type=None, mask_ratio=0.25, patch_len=96, mask_patch_len=12, mask_stride=12, noise_lm=3, noise_distribution='geometric', noise_exclude_feats=None):
+    """
+    The overall masking function. Return mask result.
+    """
+    B, T, N = x.shape  # (B,S,C)
+    xb = x.view(B, int(T / patch_len), patch_len, N)
+    xb = xb.permute(0, 1, 3, 2)
+    if mask_type == 'patch_mask':
+        mask = patch_mask(x, mask_ratio, mask_patch_len, mask_stride).to(x.device)
+        mask = expand_tensor(mask, mask_patch_len)
+        mask = mask.reshape(B, N, -1)[:, :, :T].permute(0, 2, 1)
+        x_masked = x * mask.int()
+    elif mask_type == 'patch_random_mask':
+        x_masked, x_kept, mask, ids_restore = patch_random_mask(xb, mask_ratio)
+        x_masked = x_masked.permute(0, 1, 3, 2).view(B, T, N)
+    elif mask_type == 'MAE_random_mask':
+        x_masked, x_kept, mask, ids_restore = MAE_random_mask(xb, mask_ratio)
+        x_masked = x_masked.permute(0, 1, 3, 2).view(B, T, N)
+    elif mask_type == 'noise_mask':
+        mask = noise_mask(x, mask_ratio, noise_lm, noise_distribution, noise_exclude_feats).to(x.device)
+        x_masked = x * mask.int()
+    else:
+        # mask = torch.ones_like(x)
+        x_masked = x
+    return torch.tensor(x_masked, device=x.device)

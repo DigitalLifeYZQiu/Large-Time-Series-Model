@@ -11,6 +11,7 @@ from exp.exp_forecast import Exp_Forecast
 from exp.exp_anomaly_detection import Exp_Anomaly_Detection
 from exp.exp_anomaly_detection_AEAR import Exp_Anomaly_Detection_AEAR # deprecated
 from exp.exp_anomaly_detection_AE import Exp_Anomaly_Detection_AE
+from exp.exp_anomaly_detection_AE_MaskMix import Exp_Anomaly_Detection_AE_MaskMix
 from exp.exp_anomaly_detection_AR import Exp_Anomaly_Detection_AR
 from exp.exp_imputation import Exp_Imputation
 from exp.exp_visualize import Exp_Visualize
@@ -60,7 +61,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_attention', action='store_true', help='whether to output attention in ecoder')
 
     # optimization
-    parser.add_argument('--num_workers', type=int, default=10, help='data loader num workers')
+    parser.add_argument('--num_workers', type=int, default=5, help='data loader num workers')
     parser.add_argument('--itr', type=int, default=1, help='experiments times')
     parser.add_argument('--train_epochs', type=int, default=10, help='train epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
@@ -122,6 +123,7 @@ if __name__ == '__main__':
     parser.add_argument('--mask_rate', type=float, default=0.25, help='mask ratio')
     parser.add_argument('--mask_type', type=str, default=None, help='mask type')
     parser.add_argument('--use_ensemble_forecast', action='store_true', help='use ensemble forecasting in auto-regressive form anomaly detection', default=False)
+    parser.add_argument('--ensemble_type', type=str, default=None, help='ensemble type')
 
     # visualization
     parser.add_argument('--show_embedding', action='store_true', help='plot embedding tsne result', default=False)
@@ -140,7 +142,6 @@ if __name__ == '__main__':
     random.seed(fix_seed)
     torch.manual_seed(fix_seed)
     np.random.seed(fix_seed)
-    # breakpoint()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
     if args.use_multi_gpu:
         ip = os.environ.get("MASTER_ADDR", "127.0.0.1")
@@ -165,6 +166,8 @@ if __name__ == '__main__':
         Exp = Exp_Anomaly_Detection_AEAR
     elif args.task_name == 'anomaly_detection_AE':
         Exp = Exp_Anomaly_Detection_AE
+    elif args.task_name == 'anomaly_detection_AE_MaskMix':
+        Exp = Exp_Anomaly_Detection_AE_MaskMix
     elif args.task_name == 'anomaly_detection_AR':
         Exp = Exp_Anomaly_Detection_AR
     elif args.task_name == 'forecast':

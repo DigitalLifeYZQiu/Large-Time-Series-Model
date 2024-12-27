@@ -1,5 +1,5 @@
 > [!NOTE]
-> Given the prevalence of large models. We release a open codebase [**OpenLTM**](https://github.com/thuml/OpenLTM) to explore the design philosophy of large time-series models, which contains a simple pipeline to train and evaluate large time-series models :)
+> We release a open codebase [**OpenLTM**](https://github.com/thuml/OpenLTM) to explore the design philosophy of large time-series models, which contains a simple pipeline to train large time-series models :)
 
 
 # Timer (Large Time-Series Model)
@@ -8,11 +8,9 @@ This repo provides official code, datasets and checkpoints for [Timer: Generativ
 
 # Updates
 
-:triangular_flag_on_post: **News** (2024.12) We enhanced Timer with our [further work](https://arxiv.org/abs/2410.04803) and pre-trained on **307B time points**. The checkpoint will be released on [HuggingFace](https://huggingface.co/thuml/timer-1.1-84m) and support zero-shot forecasting.
+:triangular_flag_on_post: **News** (2024.12) Timer is enhanced with our [further work](https://arxiv.org/abs/2410.04803) and pre-trained on **260B time points**. Checkpoint is now available: [[HuggingFace]](https://huggingface.co/thuml/timer-base-84m) [[Benchmark]](https://cdn-uploads.huggingface.co/production/uploads/64fbe24a2d20ced4e91de38a/VAfuvvqBALLvQUXYJPZJx.png). An example of zero-shot forecasting is provided [here](./examples/quickstart_zero_shot.ipynb).
 
 :triangular_flag_on_post: **News** (2024.10) We release numpy format of [UTSD](https://cloud.tsinghua.edu.cn/f/93868e3a9fb144fe9719/). An easier and more efficient dataloader can be found [here](https://github.com/thuml/OpenLTM/blob/main/data_provider/data_loader.py).
-
-:triangular_flag_on_post: **News** (2024.10) Timer is included in [OpenLTM (Open-Source Large Time-Series Models)](https://github.com/thuml/OpenLTM).
 
 :triangular_flag_on_post: **News** (2024.6) Pre-training dataset (UTSD) is available in [HuggingFace](https://huggingface.co/datasets/thuml/UTSD). Dataloader is also contained.
 
@@ -22,15 +20,40 @@ This repo provides official code, datasets and checkpoints for [Timer: Generativ
 
 ## Introduction
 
-**Tim**e Series Transfor**mer** (Timer) is a Generative Pre-trained Transformer for general time series analysis. You can visit our [Homepage](https://thuml.github.io/timer/) for a more detailed introduction.
-
+**Tim**e Series Transfor**mer** (Timer) is a Generative Pre-trained Transformer for general time series analysis.
 <p align="center">
 <img src="./figures/abilities.png" alt="" align=center />
 </p>
 
+
+## Zero-Shot Forecasting
+We provide the checkpoint to make predictions without training samples. See our [HuggingFace Repo](https://huggingface.co/thuml/timer-base-84m) for the detialed information and usage.
+
+> A inference example (**minimal dependencies required**): 
+
+```
+import torch
+from transformers import AutoModelForCausalLM
+
+# load pretrain model
+model = AutoModelForCausalLM.from_pretrained('thuml/timer-base-84m', trust_remote_code=True)
+
+# prepare input
+batch_size, lookback_length = 1, 2880
+seqs = torch.randn(batch_size, lookback_length)
+
+# generate forecast
+prediction_length = 96
+normed_output = model.generate(normed_seqs, max_new_tokens=prediction_length)
+
+print(output.shape)
+```
+
+There's indeed room for improvement in this small model. We are actively working around it and are glad to see constructive suggestions and noteworthy cases :)
+
 ## Datasets
 
-We propose Unified Time Series Datasets (UTSD), which encompass well-curated time series to facilitate the research on large time-series models. Our dataset is released in [HuggingFace](https://huggingface.co/datasets/thuml/UTSD).
+We collect Unified Time Series Datasets (UTSD), which encompass well-curated time series to facilitate the research on large time-series models. Our dataset is released in [HuggingFace](https://huggingface.co/datasets/thuml/UTSD).
 
 <p align="center">
 <img src="./figures/utsd.png" alt="" align=center />
@@ -38,7 +61,7 @@ We propose Unified Time Series Datasets (UTSD), which encompass well-curated tim
 
 ###  Usage
 
-You can access and load UTSD in the style of [TSLib](https://github.com/thuml/Time-Series-Library) based on the following:
+You can access and load UTSD in the style of [TSLib](https://github.com/thuml/Time-Series-Library) based on the following steps:
 
 ```bash
 # huggingface-cli login
@@ -50,20 +73,30 @@ python ./scripts/UTSD/download_dataset.py
 python ./scripts/UTSD/utsdataset.py
 ```
 
+## For Developers 
 
-## Tasks
+For developers interest in large model adaptation, we provide fine-tuning code based on [non-HuggingFace checkpoints](https://drive.google.com/drive/folders/15oaiAl4OO5gFqZMJD2lOtX2fxHbpgcU8?usp=drive_link), which is a smaller version of Timer developed in the [TSLib](https://github.com/thuml/Time-Series-Library) style.
 
-> **[Forecasting](./scripts/forecast/README.md)**: We provide all scripts as well as datasets for few-shot forecasting in this repo.
+> [!NOTE]
+>  We recommend using [checkpoints on HuggingFace](https://huggingface.co/thuml/timer-base-84m) for model evaluation (e.g., zero-shot forecasting). However, it is not compatiable with the following fine-tuning code (but we are working on it :)
+> 
+> 
+
+### Supported Tasks
+
+> **[Forecasting](./scripts/forecast/README.md)**: We provide all scripts for few-shot forecasting in this repo.
 
 > **[Imputation](./scripts/imputation/README.md)**:  We propose segment-level imputation, which is more challenging than point-level imputation.
 
 > **[Anomaly Detection](scripts/anomaly_detection/README.md)**: We provide new benchmarks of predictive anomaly detection on [UCR Anomaly Archive](https://arxiv.org/pdf/2009.13807).
 
-We provide detailed README files illustrating each task under the folder ```./scripts/```.
+We provide the README files illustrating each task under the folder ```./scripts/```.
 
-## Code for Fine-tuning 
 
-1. Install Pytorch and necessary dependencies.
+
+### Code for Fine-tuning 
+
+1. Use Python 3.10 and install necessary dependencies.
 
 ```
 pip install -r requirements.txt
@@ -86,11 +119,11 @@ bash ./scripts/imputation/ECL.sh
 bash ./scripts/anomaly_detection/UCR.sh
 ```
 
-## Train on Custom Dataset
+### Train on Custom Dataset
 
 To fine-tune on your time series dataset, you can try out the following steps:
 
-1. The essense is to reload the customized dataloader and load the pre-trained checkpoint (See ```./scripts/``` folder).
+1. The key is to reload the customized dataloader and load the pre-trained checkpoint (See ```./scripts/``` folder).
 2. ```CIDatasetBenchmark```/```CIAutoRegressionDatasetBenchmark``` in the ```data_provider``` folder can train and evaluate models in direct / iterative multi-step mode.
 
 
@@ -98,7 +131,7 @@ To fine-tune on your time series dataset, you can try out the following steps:
 
 ### Pre-training and Adaptation
 
-To pre-train on heterogeneous time series, we propose **single-series sequence (S3)**, reserving series variations with the unified context length. Further, we convert forecasting, imputation, and anomaly detection into a **unified generative task**.
+To pre-train on heterogeneous time series, we propose **single-series sequence (S3)**, reserving series variations into the unified 1D context. Further, we convert forecasting, imputation, and anomaly detection into a **unified generative task**.
 
 <p align="center">
 <img src="./figures/pretrain_adaptation.png" align=center />
@@ -106,7 +139,7 @@ To pre-train on heterogeneous time series, we propose **single-series sequence (
 
 ### Model Architecture
 
-Given the limited exploration of **the backbone for large time-series models**, we extensively evaluate candidate backbones and adopt the decoder-only Transformer with autoregressive generation towards LTMs.
+We evaluate various candidate backbones and eventually adopt the **decoder-only Transformer**, which provides notable **generalization performance** and **length-flexibility** that accommodate various time series.
 
 <p align="center">
 <img src="./figures/architecture.png" align=center />
@@ -115,7 +148,7 @@ Given the limited exploration of **the backbone for large time-series models**, 
 
 ## Performance
 
-Timer achieves **state-of-the-art** performance in each task and we present the pre-training benefit on few-shot scenarios.
+Timer achieves **state-of-the-art** performance in [zero-shot forecasting](https://cdn-uploads.huggingface.co/production/uploads/64fbe24a2d20ced4e91de38a/VAfuvvqBALLvQUXYJPZJx.png), general time series analysis, and present the pre-training benefit on few-shot scenarios.
 
 <p align="center">
 <img src="./figures/performance.png" align=center />
@@ -123,31 +156,18 @@ Timer achieves **state-of-the-art** performance in each task and we present the 
 
 ## Scalability
 
-By increasing the parameters and pre-training scale, Timer achieves notable performance improvement: 0.231 $\to$ 0.138 (−40.3%), surpassing the previous state-of-the-art deep forecasters.
+By scaling, Timer achieves notable performance improvement. Currently, we provide the base version containing 84M paramaters that is pre-trained on 260B time points, which supports a **maximum context length of 2880**.
 
 <p align="center">
 <img src="./figures/scale.png" alt="300" align=center />
 </p>
 
-## Flexible Sequence Length
+## Futher Improvement
 
-The decoder-only architecture provides the flexibility to accommodate time series of different lookback and forecast lengths.
+We enhanced Timer by this [paper](https://arxiv.org/abs/2410.04803) with **longer context** and **TimeAttention**.
 
 <p align="center">
-<img src="./figures/length.png" alt="300" align=center />
-</p>
-
-## Related Works
-
-Given the significant value to researchers and practitioners, we provide a summary of several concurrent large time-series models:
-
-* [MOMENT](https://arxiv.org/abs/2402.03885) is trained on large scale by masking modeling. It can be applied to zero-shot forecasting by concatenating lookback series with a mask with the length to be predicted.
-* [Chronos](https://arxiv.org/abs/2403.07815) is a probabilistic point-level forecaster developed by [Amazon](https://huggingface.co/amazon/chronos-t5-large). Chronos-S1 samples one prediction trajectory and Chronos-S20 uses the mean of sampled 20 trajectories.
-* [TimesFM](https://arxiv.org/abs/2310.10688) from Google is trained on 100B time points. We use the official checkpoint from [HuggingFace]( https://huggingface.co/google/timesfm-1.0-200m). It supports dynamic input and output prediction lengths.
-* [Moirai](https://arxiv.org/abs/2402.02592) is developed by Saleforce, exceling at multivariate time series. It has three different [checkpoints](https://huggingface.co/collections/Salesforce/moirai-10-r-models-65c8d3a94c51428c300e0742), labeled as Moirai-S, Moirai-M, and Moirai-L.
-  
-<p align="center">
-<img src="./figures/quality.png" alt="300" align=center />
+<img src="./figures/timer-xl.png" alt="300" align=center />
 </p>
 
 ## Citation

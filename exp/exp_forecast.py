@@ -394,8 +394,12 @@ class Exp_Forecast(Exp_Basic):
                         # batch_y = torch.Tensor(data.scaler.transform(batch_y.reshape(-1,1)).reshape((B,S,C)))
                         if data.scale and self.args.inverse:
                             shape = outputs.shape
-                            outputs = data.inverse_transform(outputs.squeeze(0)).reshape(shape)
-                            batch_y = data.inverse_transform(batch_y.squeeze(0)).reshape(shape)
+                            outputs = data.inverse_transform(outputs.reshape(-1,1)).reshape(shape)
+                            batch_y = data.inverse_transform(batch_y.reshape(-1,1)).reshape(shape)
+                            outputs = data.test_scaler.transform(outputs.reshape(-1,1)).reshape(shape)
+                            batch_y = data.test_scaler.transform(batch_y.reshape(-1,1)).reshape(shape)
+                            outputs = torch.Tensor(outputs)
+                            batch_y = torch.Tensor(batch_y)
                         
                         outputs = outputs[:, :, f_dim:]
                         batch_y = batch_y[:, :, f_dim:]

@@ -39,6 +39,7 @@ class CIDatasetBenchmark(Dataset):
 
     def __read_data__(self):
         self.scaler = StandardScaler()
+        self.test_scaler = StandardScaler()
         dataset_file_path = self.root_path
         if dataset_file_path.endswith('.csv'):
             df_raw = pd.read_csv(dataset_file_path)
@@ -99,11 +100,15 @@ class CIDatasetBenchmark(Dataset):
             data = data[:, -1:]
 
         if self.scale:
-            scaler_data = data[border1s[self.set_type]:border2s[self.set_type]]
-            self.scaler.fit(scaler_data)
-        
-            
+            train_data = data[border1s[0]:border2s[0]]
+            self.scaler.fit(train_data)
             data = self.scaler.transform(data)
+            # if self.set_type == 0 or self.set_type == 1:
+            #     data = self.scaler.transform(data)
+            # elif self.set_type == 2:
+            #     data = data
+            test_data = data[border1s[2]:border2s[2]]
+            self.test_scaler.fit(test_data)
         
         
             

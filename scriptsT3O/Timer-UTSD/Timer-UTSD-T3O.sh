@@ -17,7 +17,7 @@ max_jobs=8
 job_counter=0  # 任务计数器（用于 GPU 轮询分配）
 GPUS=(0 1 2 3 4 5 6 7)
 
-log_dir=logs/T3O-data-scaler/Timer-UTSD
+log_dir=logs/T3O-train-scaler/Timer-UTSD
 mkdir -p ${log_dir}
 
 for lr in "${lr_list[@]}";do

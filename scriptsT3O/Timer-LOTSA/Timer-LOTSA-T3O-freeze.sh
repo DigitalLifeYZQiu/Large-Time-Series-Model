@@ -9,7 +9,7 @@ ckpt_path=../CKPT/Large_timegpt_d1024_l8_p96_n64_new_full.ckpt
 
 # 参数列表
 lr_list=(1e-3 5e-4 3e-4 1e-4 5e-5 3e-5 1e-5)
-subset_list=(500 1000 1500 2000 2500 3000)
+subset_list=(500)
 pred_len_list=(24 48 96 192)
 
 # 最大并行任务数（根据 GPU 显存调整）
@@ -17,7 +17,7 @@ max_jobs=8
 job_counter=0  # 任务计数器（用于 GPU 轮询分配）
 GPUS=(0 1 2 3 4 5 6 7)
 
-log_dir=logs/T3O/Timer-LOTSA-freeze
+log_dir=logs/T3O-train-scaler/Timer-LOTSA-freeze
 mkdir -p ${log_dir}
 
 for lr in "${lr_list[@]}";do

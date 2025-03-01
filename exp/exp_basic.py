@@ -1,13 +1,14 @@
 import os
 
 import torch
-from models import TrmEncoder, Timer
+from models import TrmEncoder, Timer, Arima
 
 def __init__(self, args):
         self.args = args
         self.model_dict = {
             'TrmEncoder': TrmEncoder,
             'Timer': Timer,
+            'Arima': Arima,
         }
         if self.args.use_multi_gpu:
             self.model = self._build_model()
@@ -21,8 +22,12 @@ class Exp_Basic(object):
     def __init__(self, args):
         self.args = args
         self.model_dict = {
+            'Timer-UTSD': Timer,
+            'Timer-LOTSA': Timer,
+            'Timer-Lotsa': Timer,
             'TrmEncoder': TrmEncoder,
             'Timer': Timer,
+            'Arima': Arima,
         }
         if self.args.use_multi_gpu:
             self.model = self._build_model()
@@ -37,8 +42,8 @@ class Exp_Basic(object):
 
     def _acquire_device(self):
         if self.args.use_gpu:
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(
-                self.args.gpu) if not self.args.use_multi_gpu else self.args.devices
+            # os.environ["CUDA_VISIBLE_DEVICES"] = str(
+            #     self.args.gpu) if not self.args.use_multi_gpu else self.args.devices
             device = torch.device('cuda:{}'.format(self.args.gpu))
             print('Use GPU: cuda:{}'.format(self.args.gpu))
         else:

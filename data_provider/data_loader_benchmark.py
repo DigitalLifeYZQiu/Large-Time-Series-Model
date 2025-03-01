@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 class CIDatasetBenchmark(Dataset):
     def __init__(self, root_path='dataset', flag='train', input_len=None, pred_len=None,
-                 data_type='custom', scale=True, timeenc=1, freq='h', stride=1, subset_rand_ratio=1.0):
+                 data_type='custom', scale=True, timeenc=1, freq='h', stride=1, subset_rand_ratio=1.0, features='MS'):
         self.subset_rand_ratio = subset_rand_ratio
         # size [seq_len, label_len, pred_len]
         # info
@@ -33,6 +33,7 @@ class CIDatasetBenchmark(Dataset):
 
         self.root_path = root_path
         self.dataset_name = self.root_path.split('/')[-1].split('.')[0]
+        self.features = features
 
         self.__read_data__()
 
@@ -93,12 +94,19 @@ class CIDatasetBenchmark(Dataset):
             data = df_raw[df_raw.columns[1:]].values
         else:
             data = df_raw.values
+            
+        if self.features == 'S':
+            data = data[:, -1:]
 
         if self.scale:
-            train_data = data[border1s[0]:border2s[0]]
-            self.scaler.fit(train_data)
+            scaler_data = data[border1s[self.set_type]:border2s[self.set_type]]
+            self.scaler.fit(scaler_data)
+        
+            
             data = self.scaler.transform(data)
-
+        
+        
+            
         if self.timeenc == 0:
             df_stamp = df_raw[['date']]
             df_stamp['date'] = pd.to_datetime(df_stamp.date)
@@ -137,8 +145,14 @@ class CIDatasetBenchmark(Dataset):
         seq_y = self.data_y[r_begin:r_end, c_begin:c_begin + 1]
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
-
         return seq_x, seq_y, seq_x_mark, seq_y_mark
+        # instance_scaler = StandardScaler()
+        # S = seq_x.shape[0]
+        # # import pdb; pdb.set_trace()
+        # mean = np.mean(seq_x)
+        # std = np.std(seq_x)
+        # seq_x = ((seq_x - mean) / (std + 1e-8))
+        # return seq_x, seq_y, seq_x_mark, seq_y_mark, mean, std
 
     def __len__(self):
         if self.set_type == 0:

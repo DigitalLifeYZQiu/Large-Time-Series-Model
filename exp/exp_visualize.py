@@ -98,7 +98,7 @@ class Exp_Visualize(Exp_Basic):
         test_data, test_loader = data_provider(self.args, flag='test')
 
         path = os.path.join(self.args.checkpoints, setting)
-        if not os.path.exists(path) and int(os.environ.get("LOCAL_RANK", "0")) == 0:
+        if not os.path.exists(path):
             os.makedirs(path)
 
         time_now = time.time()
@@ -196,7 +196,7 @@ class Exp_Visualize(Exp_Basic):
         print('Model parameters: ', sum(param.numel() for param in self.model.parameters()))
         attns = []
         folder_path = './test_results/' + setting + '/' + self.args.data_path + '/' + f'{self.args.output_len}/'
-        if not os.path.exists(folder_path) and int(os.environ.get("LOCAL_RANK", "0")) == 0:
+        if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         self.model.eval()
         if self.args.output_len_list is None:

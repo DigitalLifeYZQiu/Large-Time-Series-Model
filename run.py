@@ -41,6 +41,7 @@ if __name__ == '__main__':
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=False)
+    parser.add_argument('--subset', type=int, default=None, help='number of subset samples (use the first ${subset} samples in the dataloader)')
 
 
 
@@ -206,7 +207,7 @@ if __name__ == '__main__':
                 if args.date_record:
                     # setting += datetime.now().strftime("%y-%m-%d_%H-%M-%S")
                     setting = datetime.now().strftime("%y-%m-%d_%H-%M-%S") + setting
-
+                
                 exp = Exp(args)  # set experiments
                 print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
                 exp.finetune(setting)
